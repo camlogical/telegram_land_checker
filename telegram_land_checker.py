@@ -58,31 +58,24 @@ def scrape_land_data(land_number: str) -> dict:
         location = extract_between(html, '<span>ភូមិ ៖ ', '</span>')
         updated_system = extract_between(html, '(ធ្វើបច្ចុប្បន្នភាព: <span>', '</span>)</p>')
 
-        # Try to extract extra table (owner information)
-        owner_info = {}
-        table = soup.select_one("#extra_table")
-        if not table:
-            tables = soup.find_all("table")
-            for t in tables:
-                if "លេខសម្គាល់កម្មសិទ្ធិ" in t.text:
-                    table = t
-                    break
-
+        # Extract owner info (extra table) — YOUR STYLE
+        table_data = {}
+        table = soup.find("table", class_="table table-bordered")
         if table:
             rows = table.find_all("tr")
             for row in rows:
-                cols = row.find_all("td")
-                if len(cols) >= 2:
-                    key = cols[0].get_text(strip=True)
-                    value = cols[1].get_text(strip=True)
-                    owner_info[key] = value
+                cells = row.find_all("td")
+                if len(cells) == 2:
+                    key = cells[0].get_text(strip=True)
+                    value = cells[1].get_text(strip=True)
+                    table_data[key] = value
 
         return {
             "status": "found",
             "serial_info": serial_info,
             "location": location,
             "updated_system": updated_system,
-            "owner_info": owner_info
+            "owner_info": table_data
         }
 
     except Exception as e:
