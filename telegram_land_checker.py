@@ -44,16 +44,22 @@ def scrape_land_data(land_number: str) -> dict:
         html = response.text
         soup = BeautifulSoup(html, "html.parser")
 
-        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:
-            status = "found"
-        elif "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
+        if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
             return {"status": "not_found"}
 
-        extra_table = soup.select_one("#extra_table")
-        if not extra_table:
-            return {"status": "error", "message": "Extra table not found"}
+        # Find the table manually if #extra_table is missing
+        table = soup.select_one("#extra_table")
+        if not table:
+            tables = soup.find_all("table")
+            for t in tables:
+                if "លេខសម្គាល់កម្មសិទ្ធិ" in t.text:
+                    table = t
+                    break
 
-        rows = extra_table.find_all("tr")
+        if not table:
+            return {"status": "error", "message": "Extra table not found."}
+
+        rows = table.find_all("tr")
         land_info = {}
         for row in rows:
             cols = row.find_all("td")
@@ -62,7 +68,10 @@ def scrape_land_data(land_number: str) -> dict:
                 value = cols[1].get_text(strip=True)
                 land_info[key] = value
 
-        return {"status": status, "info": land_info}
+        if not land_info:
+            return {"status": "error", "message": "No land information extracted."}
+
+        return {"status": "found", "info": land_info}
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
