@@ -70,9 +70,7 @@ def scrape_land_data(land_number: str) -> dict:
         return {"status": "error", "message": str(e)}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🏡 Welcome to the MLMUPC Land Checker Bot!
-
-Send me a land number like: 18020601-0001")
+    await update.message.reply_text("🏡 Welcome to the MLMUPC Land Checker Bot!\n\nSend me a land number like: 18020601-0001")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     land_number = update.message.text.strip()
@@ -82,11 +80,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     result = scrape_land_data(land_number)
     if result["status"] == "found":
-        msg = f"✅ *Land Info Found!*
-
-"               f"📌 *Serial Info:* {result.get('serial_info', 'N/A')}
-"               f"📍 *Location:* {result.get('location', 'N/A')}
-"               f"🕒 *Updated:* {result.get('updated_system', 'N/A')}"
+        msg = f"✅ *Land Info Found!*\n\n" \
+              f"📌 *Serial Info:* {result.get('serial_info', 'N/A')}\n" \
+              f"📍 *Location:* {result.get('location', 'N/A')}\n" \
+              f"🕒 *Updated:* {result.get('updated_system', 'N/A')}"
         await update.message.reply_text(msg, parse_mode="Markdown")
     elif result["status"] == "not_found":
         await update.message.reply_text("⚠️ No land information found.")
