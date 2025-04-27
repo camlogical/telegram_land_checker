@@ -35,7 +35,7 @@ def auto_ping():
 def scrape_land_data(land_number: str) -> dict:
     # Validate land number format (########-####)
     if not re.match(r'^\d{8}-\d{4}$', land_number):
-        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001."}
+        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"}
 
     url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -93,7 +93,7 @@ def scrape_land_data(land_number: str) -> dict:
         return {"status": "error", "message": str(e)}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី(MLMUPC Land info Checker Bot!)\n\nសូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001.\n\n\n\n Bot Developed by MNPT")
+    await update.message.reply_text("🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី (MLMUPC Land info Checker Bot!)\n\nសូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001\n\n\nBot Developed with ❤️ by MNPT.")
 
 async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Get the land numbers from the user's message
