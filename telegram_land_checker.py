@@ -50,13 +50,13 @@ def scrape_land_data(land_number: str) -> dict:
 
         # Check if the land number is found or not
         if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:  # Explicit check for "not found" message
-            return {"status": "not_found", "message": "No land information found."}
+            return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
         
         # Check for valid land information (indicating found data)
         if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:  # Check for valid land data indicator
             status = "found"
         else:
-            return {"status": "not_found", "message": "No land information found."}
+            return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
 
         # Function to extract data between two markers
         def extract_between(text, left, right):
