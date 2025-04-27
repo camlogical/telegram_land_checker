@@ -113,7 +113,7 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
             if result['owner_info']:
                 msg += "\n📝 *ព័ត៌មានក្បាលដី៖*\n"
                 for key, value in result['owner_info'].items():
-                    msg += f"   - {key}: {value}\n"
+                    msg += f"   - {key} {value}\n"
             
             # Add Footer for "found" data only
             msg += "\n\nChecked data from: [MLMUPC](https://mlmupc.gov.kh/electronic-cadastral-services)\nBot Developed by MN"
