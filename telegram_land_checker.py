@@ -6,6 +6,7 @@ from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import re
+from bs4 import BeautifulSoup
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
@@ -31,9 +32,6 @@ def auto_ping():
             print(f"Ping failed: {e}")
         time.sleep(600)
 
-import requests as req
-from bs4 import BeautifulSoup
-
 def scrape_land_data(land_number: str) -> dict:
     # Validate land number format (########-####)
     if not re.match(r'^\d{8}-\d{4}$', land_number):
@@ -44,16 +42,20 @@ def scrape_land_data(land_number: str) -> dict:
     data = {"recaptchaToken": "", "landNum": land_number}
 
     try:
-        response = req.post(url, headers=headers, data=data, timeout=10)
+        response = requests.post(url, headers=headers, data=data, timeout=10)
         if response.status_code != 200:
             return {"status": "error", "message": f"HTTP error {response.status_code}"}
 
         html = response.text
 
         # Check if the land number is found or not
-        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:
+        if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:  # Explicit check for "not found" message
+            return {"status": "not_found", "message": "No land information found."}
+        
+        # Check for valid land information (indicating found data)
+        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:  # Check for valid land data indicator
             status = "found"
-        elif "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
+        else:
             return {"status": "not_found", "message": "No land information found."}
 
         # Function to extract data between two markers
