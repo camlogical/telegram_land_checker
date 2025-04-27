@@ -161,13 +161,20 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        # Sending the file as an attachment for download
-        with open(filename, mode='rb') as file:
-            await update.message.reply_document(
-                document=file,
-                filename="user_search_history.csv",
-                caption="📄 User Search History"
-            )
+        with open(filename, mode='r', encoding='utf-8') as file:
+            content = file.read()
+
+        if len(content) > 3500:
+            # If content is too large, send the CSV as a downloadable document
+            with open(filename, mode='rb') as file:
+                await update.message.reply_document(
+                    document=file,
+                    filename="user_search_history.csv",
+                    caption="📄 User Search History"
+                )
+        else:
+            # If content is small enough, send it directly in chat as a formatted text message
+            await update.message.reply_text(f"📄 *User Search History:*\n\n```\n{content}\n```", parse_mode="Markdown")
     
     except Exception as e:
         await update.message.reply_text(f"❌ Error reading history: {e}")
