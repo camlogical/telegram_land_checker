@@ -1,3 +1,4 @@
+# Remove clear and stats imports
 import os
 import threading
 import time
@@ -33,7 +34,6 @@ def auto_ping():
         time.sleep(600)
 
 def scrape_land_data(land_number: str) -> dict:
-    # Validate land number format (########-####)
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"}
 
@@ -48,17 +48,14 @@ def scrape_land_data(land_number: str) -> dict:
 
         html = response.text
 
-        # Check if the land number is found or not
-        if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:  # Explicit check for "not found" message
+        if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
         
-        # Check for valid land information (indicating found data)
-        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:  # Check for valid land data indicator
+        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:
             status = "found"
         else:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
 
-        # Function to extract data between two markers
         def extract_between(text, left, right):
             try:
                 return text.split(left)[1].split(right)[0].strip()
@@ -69,7 +66,6 @@ def scrape_land_data(land_number: str) -> dict:
         location = extract_between(html, '<span>ភូមិ ៖ ', '</span>')
         updated_system = extract_between(html, '(ធ្វើបច្ចុប្បន្នភាព: <span>', '</span>)</p>')
 
-        # Scraping Owner Information
         owner_info = {}
         soup = BeautifulSoup(html, 'html.parser')
         table = soup.find("table", class_="table table-bordered")
@@ -96,10 +92,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី (MLMUPC Land info Checker Bot!)\n\nសូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001\n\n\nBot Developed with ❤️ by MNPT.")
 
 async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Get the land numbers from the user's message
     land_numbers = update.message.text.strip().split("\n")
     
-    # Process each land number individually and send a separate message
     for land_number in land_numbers:
         result = scrape_land_data(land_number.strip())
         
@@ -109,13 +103,11 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
                   f"👉 *លេខប័ណ្ណកម្មសិទ្ធិ៖* {result.get('serial_info', 'N/A')}\n" \
                   f"📍 *ទីតាំងដី ភូមិ៖* {result.get('location', 'N/A')}\n"
 
-            # Include Owner Info if available
             if result['owner_info']:
                 msg += "\n📝 *ព័ត៌មានក្បាលដី៖*\n"
                 for key, value in result['owner_info'].items():
                     msg += f"   - {key} {value}\n"
             
-            # Add Footer for "found" data only
             msg += "\n\nChecked data from: [MLMUPC](https://mlmupc.gov.kh/electronic-cadastral-services)\nBot Developed by MNPT"
 
             await update.message.reply_text(msg, parse_mode="Markdown")
@@ -130,31 +122,6 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
             
             await update.message.reply_text(msg, parse_mode="Markdown")
 
-# Command to clear chat
-async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.message.chat.id
-
-    # Fetch all the messages and delete them
-    all_messages = await update.message.chat.get_chat_messages()
-    for msg in all_messages:
-        try:
-            await update.message.chat.delete_message(msg.message_id)
-        except Exception as e:
-            print(f"Error deleting message: {e}")
-    
-    await update.message.reply_text("✅ All messages in the chat have been cleared.")
-
-# Command to show stats (total users and usage)
-async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Assuming you have some way to store stats such as the number of users and their activity
-    total_users = 100  # Example: This would be dynamically fetched
-    total_queries = 250  # Example: This would be dynamically fetched
-
-    stats_msg = f"📝 *Bot Stats*\n\n" \
-                f"👥 *Total Users:* {total_users}\n" \
-                f"🔍 *Total Queries:* {total_queries}"
-    await update.message.reply_text(stats_msg)
-
 if __name__ == "__main__":
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
@@ -165,6 +132,4 @@ if __name__ == "__main__":
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
     app_bot.add_handler(CommandHandler("start", start))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
-    app_bot.add_handler(CommandHandler("stats", stats))
-    app_bot.add_handler(CommandHandler("clear", clear))  # /clear command
     app_bot.run_polling()
