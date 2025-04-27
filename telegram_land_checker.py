@@ -5,6 +5,8 @@ import requests
 from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+import requests as req
+from bs4 import BeautifulSoup
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
@@ -30,9 +32,6 @@ def auto_ping():
             print(f"Ping failed: {e}")
         time.sleep(600)
 
-import requests as req
-from bs4 import BeautifulSoup
-
 def scrape_land_data(land_number: str) -> dict:
     url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -45,12 +44,12 @@ def scrape_land_data(land_number: str) -> dict:
 
         html = response.text
 
-        # Check if no land data is found based on keywords in the HTML
-        if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
-            return {"status": "not_found", "message": "No land data found."}
-        
-        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" not in html:
-            return {"status": "not_found", "message": "Land data is missing."}
+        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:
+            status = "found"
+        elif "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html or "No information available for this land number" in html:
+            return {"status": "not_found", "message": "No land information found."}
+        else:
+            return {"status": "not_found", "message": "Unexpected response format."}
 
         def extract_between(text, left, right):
             try:
@@ -76,7 +75,7 @@ def scrape_land_data(land_number: str) -> dict:
                     owner_info[key] = value
 
         return {
-            "status": "found",
+            "status": status,
             "serial_info": serial_info,
             "location": location,
             "updated_system": updated_system,
@@ -99,25 +98,26 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
         result = scrape_land_data(land_number.strip())
         if result["status"] == "found":
             msg = f"✅ *Land Info Found for {land_number.strip()}!*\n" \
-                  f"📌 *លេខប័ណ្ណកម្មសិទ្ធិ:* {result.get('serial_info', 'N/A')}\n" \
-                  f"📍 *ទីតាំងដី: ភូមិ៖* {result.get('location', 'N/A')}\n" \
-                  f"🕒 *បច្ចុប្បន្នភាព:* {result.get('updated_system', 'N/A')}\n"
+                  f"📌 *Serial Info:* {result.get('serial_info', 'N/A')}\n" \
+                  f"📍 *Location:* {result.get('location', 'N/A')}\n" \
+                  f"🕒 *Updated:* {result.get('updated_system', 'N/A')}\n"
             
             # Include Owner Info if available
             if result['owner_info']:
-                msg += "\n👤 *ព័ត៌មានក្បាលដី:*\n"
+                msg += "\n👤 *Owner Info:*\n"
                 for key, value in result['owner_info'].items():
                     msg += f"   - {key}: {value}\n"
             
             results.append(msg)
         elif result["status"] == "not_found":
-            results.append(f"⚠️ *{land_number.strip()}* {result.get('message', 'No land information found.')}")
+            results.append(f"⚠️ *{land_number.strip()}* No land information found.")
         else:
             results.append(f"❌ Error for *{land_number.strip()}*: {result.get('message', 'Unknown error')}")
 
     # Send the combined result to the user
     if results:
-        await update.message.reply_text("\n\n".join(results), parse_mode="Markdown")
+        for res in results:
+            await update.message.reply_text(res, parse_mode="Markdown")
     else:
         await update.message.reply_text("❌ No valid land numbers were found.")
 
