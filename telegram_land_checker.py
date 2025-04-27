@@ -93,7 +93,7 @@ def scrape_land_data(land_number: str) -> dict:
         return {"status": "error", "message": str(e)}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី(MLMUPC Land info Checker Bot!)\n\nសូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001."\n\n\n\n Bot Developed by MNPT)
+    await update.message.reply_text("🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី(MLMUPC Land info Checker Bot!)\n\nសូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001."\n\n\n\n Bot Developed by MNPT")
 
 async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Get the land numbers from the user's message
