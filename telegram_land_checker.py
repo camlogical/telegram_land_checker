@@ -103,13 +103,14 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
         
         if result["status"] == "found":
             msg = f"✅ *Land Info Found for {land_number.strip()}!*\n" \
-                  f"📌 *លេខប័ណ្ណកម្មសិទ្ធិ:* {result.get('serial_info', 'N/A')}\n" \
-                  f"📍 *ទីតាំងដី: ភូមិ៖* {result.get('location', 'N/A')}\n" \
-                  f"🕒 *បច្ចុប្បន្នភាព:* {result.get('updated_system', 'N/A')}\n"
+                  f"🔄 *បច្ចុប្បន្នភាព៖* {result.get('updated_system', 'N/A')}\n" \
+                  f"#️⃣ *លេខប័ណ្ណកម្មសិទ្ធិ៖* {result.get('serial_info', 'N/A')}\n" \
+                  f"📍 *ទីតាំងដី ភូមិ៖* {result.get('location', 'N/A')}\n"
+
             
             # Include Owner Info if available
             if result['owner_info']:
-                msg += "\n👤 *ព័ត៌មានក្បាលដី:*\n"
+                msg += "\nℹ️ *ព័ត៌មានក្បាលដី៖*\n"
                 for key, value in result['owner_info'].items():
                     msg += f"   - {key}: {value}\n"
             
