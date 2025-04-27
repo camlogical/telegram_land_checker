@@ -97,13 +97,13 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
         result = scrape_land_data(land_number.strip())
         if result["status"] == "found":
             msg = f"✅ *Land Info Found for {land_number.strip()}!*\n" \
-                  f"📌 *Serial Info:* {result.get('serial_info', 'N/A')}\n" \
-                  f"📍 *Location:* {result.get('location', 'N/A')}\n" \
-                  f"🕒 *Updated:* {result.get('updated_system', 'N/A')}\n"
+                  f"📌 *លេខប័ណ្ណកម្មសិទ្ធិ:* {result.get('serial_info', 'N/A')}\n" \
+                  f"📍 *ទីតាំងដី: ភូមិ៖* {result.get('location', 'N/A')}\n" \
+                  f"🕒 *បច្ចុប្បន្នភាព:* {result.get('updated_system', 'N/A')}\n"
             
             # Include Owner Info if available
             if result['owner_info']:
-                msg += "\n👤 *Owner Info:*\n"
+                msg += "\n👤 *ព័ត៌មានក្បាលដី:*\n"
                 for key, value in result['owner_info'].items():
                     msg += f"   - {key}: {value}\n"
             
@@ -119,6 +119,31 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
     else:
         await update.message.reply_text("❌ No valid land numbers were found.")
 
+# Command to clear chat
+async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.message.chat.id
+
+    # Fetch all the messages and delete them
+    all_messages = await update.message.chat.get_chat_messages()
+    for msg in all_messages:
+        try:
+            await update.message.chat.delete_message(msg.message_id)
+        except Exception as e:
+            print(f"Error deleting message: {e}")
+    
+    await update.message.reply_text("✅ All messages in the chat have been cleared.")
+
+# Command to show stats (total users and usage)
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Assuming you have some way to store stats such as the number of users and their activity
+    total_users = 100  # Example: This would be dynamically fetched
+    total_queries = 250  # Example: This would be dynamically fetched
+
+    stats_msg = f"📝 *Bot Stats*\n\n" \
+                f"👥 *Total Users:* {total_users}\n" \
+                f"🔍 *Total Queries:* {total_queries}"
+    await update.message.reply_text(stats_msg)
+
 if __name__ == "__main__":
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
@@ -129,4 +154,6 @@ if __name__ == "__main__":
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
     app_bot.add_handler(CommandHandler("start", start))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
+    app_bot.add_handler(CommandHandler("stats", stats))
+    app_bot.add_handler(CommandHandler("clear", clear))  # /clear command
     app_bot.run_polling()
