@@ -45,10 +45,12 @@ def scrape_land_data(land_number: str) -> dict:
 
         html = response.text
 
-        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:
-            status = "found"
-        elif "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
-            return {"status": "not_found"}
+        # Check if no land data is found based on keywords in the HTML
+        if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
+            return {"status": "not_found", "message": "No land data found."}
+        
+        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" not in html:
+            return {"status": "not_found", "message": "Land data is missing."}
 
         def extract_between(text, left, right):
             try:
@@ -74,7 +76,7 @@ def scrape_land_data(land_number: str) -> dict:
                     owner_info[key] = value
 
         return {
-            "status": status,
+            "status": "found",
             "serial_info": serial_info,
             "location": location,
             "updated_system": updated_system,
@@ -109,7 +111,7 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
             
             results.append(msg)
         elif result["status"] == "not_found":
-            results.append(f"⚠️ *{land_number.strip()}* No land information found.")
+            results.append(f"⚠️ *{land_number.strip()}* {result.get('message', 'No land information found.')}")
         else:
             results.append(f"❌ Error for *{land_number.strip()}*: {result.get('message', 'Unknown error')}")
 
