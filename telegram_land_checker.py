@@ -18,7 +18,7 @@ from google.oauth2.service_account import Credentials
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 388876020  # <<< Your Telegram User ID
 SHEET_ID = "1N_LM9CM4egDeEVVbWx7GK8h5usQbg_EEDJZBNt8M1oY"  # <<< Your Sheet ID
-GOOGLE_CREDENTIALS_FILE = "credentials.json"  # <<< Your service account credential file
+GOOGLE_CREDENTIALS_FILE = "https://raw.githubusercontent.com/camlogical/telegram_land_checker/refs/heads/main/telegram-land-checker-99fdca4dd628.json"  # <<< Your service account credential file
 
 # === FLASK SETUP ===
 app = Flask(__name__)
