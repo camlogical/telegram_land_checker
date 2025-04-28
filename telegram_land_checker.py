@@ -4,21 +4,20 @@ import time
 import requests
 import re
 import csv
+import json
 from datetime import datetime
-from bs4 import BeautifulSoup
 from flask import Flask
+from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
-
-# --- Google Sheets ---
 import gspread
 from google.oauth2.service_account import Credentials
 
 # === CONFIG ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = 388876020  # <<< Your Telegram User ID
-SHEET_ID = "1N_LM9CM4egDeEVVbWx7GK8h5usQbg_EEDJZBNt8M1oY"  # <<< Your Sheet ID
-GOOGLE_CREDENTIALS_FILE = "https://raw.githubusercontent.com/camlogical/telegram_land_checker/refs/heads/main/telegram-land-checker-99fdca4dd628.json"  # <<< Your service account credential file
+ADMIN_ID = 388876020  # 👈 Change to your Telegram ID
+SHEET_ID = "1N_LM9CM4egDeEVVbWx7GK8h5usQbg_EEDJZBNt8M1oY"
+SHEET_TAB = "User_Search_History"
 
 # === FLASK SETUP ===
 app = Flask(__name__)
@@ -43,22 +42,28 @@ def auto_ping():
             print(f"Ping failed: {e}")
         time.sleep(600)
 
-# === SETUP GOOGLE SHEETS ===
-scopes = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
+# === GOOGLE SHEETS CLIENT ===
+def get_gsheet_client():
+    credentials_info = json.loads(os.getenv('GOOGLE_CREDENTIALS_JSON'))
+    creds = Credentials.from_service_account_info(credentials_info, scopes=[
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive'
+    ])
+    client = gspread.authorize(creds)
+    return client
 
-credentials = Credentials.from_service_account_file(
-    GOOGLE_CREDENTIALS_FILE,
-    scopes=scopes
-)
-gc = gspread.authorize(credentials)
-sheet = gc.open_by_key(SHEET_ID).worksheet("Sheet1")  # Open the 'Sheet1' tab
+# === SAVE SEARCH HISTORY TO GOOGLE SHEET ===
+def save_user_search(user_id, username, land_number):
+    try:
+        client = get_gsheet_client()
+        sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_TAB)
 
-# Create headers if not already there
-if sheet.row_count == 0 or sheet.row_values(1) == []:
-    sheet.append_row(["user_id", "username", "land_number", "timestamp"])
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        sheet.append_row([str(user_id), username, land_number, timestamp])
+
+    except Exception as e:
+        print(f"❌ Failed to save search history: {e}")
 
 # === LAND DATA SCRAPER ===
 def scrape_land_data(land_number: str) -> dict:
@@ -116,14 +121,6 @@ def scrape_land_data(land_number: str) -> dict:
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# === SAVE USER SEARCH TO GOOGLE SHEET ===
-def save_user_search(user_id, username, land_number):
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    try:
-        sheet.append_row([user_id, username, land_number, timestamp])
-    except Exception as e:
-        print(f"Error saving to Google Sheet: {e}")
-
 # === BOT COMMANDS ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -141,7 +138,6 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
         land_number = land_number.strip()
         result = scrape_land_data(land_number)
 
-        # Save every search to Google Sheets
         save_user_search(user_id, username, land_number)
 
         if result["status"] == "found":
@@ -173,13 +169,20 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        all_records = sheet.get_all_values()
-        text = "\n".join([",".join(row) for row in all_records])
+        client = get_gsheet_client()
+        sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_TAB)
+        data = sheet.get_all_records()
 
-        if len(text) < 4000:  # Telegram max text message size
-            await update.message.reply_text(f"📄 *User Search History:*\n\n```\n{text}\n```", parse_mode="Markdown")
-        else:
-            await update.message.reply_text("📄 Search history is too large to display here. Please check the Google Sheet directly.")
+        if not data:
+            await update.message.reply_text("⚠️ No user search history found.")
+            return
+
+        history_text = ""
+        for row in data[-10:]:  # Show last 10 searches
+            history_text += f"👤 {row['username']} - {row['land_number']} at {row['timestamp']}\n"
+
+        await update.message.reply_text(f"📄 *Recent User Search History:*\n\n{history_text}", parse_mode="Markdown")
+
     except Exception as e:
         await update.message.reply_text(f"❌ Error reading history: {e}")
 
