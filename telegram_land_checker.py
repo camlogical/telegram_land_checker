@@ -2,17 +2,23 @@ import os
 import threading
 import time
 import requests
-from flask import Flask
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import re
 import csv
 from datetime import datetime
 from bs4 import BeautifulSoup
+from flask import Flask
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+
+# --- Google Sheets ---
+import gspread
+from google.oauth2.service_account import Credentials
 
 # === CONFIG ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = 388876020  # 👈 Change to your Telegram User ID
+ADMIN_ID = 388876020  # <<< Your Telegram User ID
+SHEET_ID = "1N_LM9CM4egDeEVVbWx7GK8h5usQbg_EEDJZBNt8M1oY"  # <<< Your Sheet ID
+GOOGLE_CREDENTIALS_FILE = "credentials.json"  # <<< Your service account credential file
 
 # === FLASK SETUP ===
 app = Flask(__name__)
@@ -36,6 +42,23 @@ def auto_ping():
         except Exception as e:
             print(f"Ping failed: {e}")
         time.sleep(600)
+
+# === SETUP GOOGLE SHEETS ===
+scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+credentials = Credentials.from_service_account_file(
+    GOOGLE_CREDENTIALS_FILE,
+    scopes=scopes
+)
+gc = gspread.authorize(credentials)
+sheet = gc.open_by_key(SHEET_ID).worksheet("Sheet1")  # Open the 'Sheet1' tab
+
+# Create headers if not already there
+if sheet.row_count == 0 or sheet.row_values(1) == []:
+    sheet.append_row(["user_id", "username", "land_number", "timestamp"])
 
 # === LAND DATA SCRAPER ===
 def scrape_land_data(land_number: str) -> dict:
@@ -93,18 +116,13 @@ def scrape_land_data(land_number: str) -> dict:
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# === SAVE SEARCH HISTORY ===
+# === SAVE USER SEARCH TO GOOGLE SHEET ===
 def save_user_search(user_id, username, land_number):
-    filename = "user_search_history.csv"
-    file_exists = os.path.isfile(filename)
-
-    with open(filename, mode='a', newline='', encoding='utf-8') as file:
-        writer = csv.writer(file)
-        if not file_exists:
-            writer.writerow(["user_id", "username", "land_number", "timestamp"])
-        
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        writer.writerow([user_id, username, land_number, timestamp])
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        sheet.append_row([user_id, username, land_number, timestamp])
+    except Exception as e:
+        print(f"Error saving to Google Sheet: {e}")
 
 # === BOT COMMANDS ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -123,7 +141,7 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
         land_number = land_number.strip()
         result = scrape_land_data(land_number)
 
-        # Save every search to history
+        # Save every search to Google Sheets
         save_user_search(user_id, username, land_number)
 
         if result["status"] == "found":
@@ -154,27 +172,14 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ You are not authorized to view user search history.")
         return
 
-    filename = "user_search_history.csv"
-
-    if not os.path.isfile(filename):
-        await update.message.reply_text("⚠️ No user search history found.")
-        return
-
     try:
-        with open(filename, mode='r', encoding='utf-8') as file:
-            content = file.read()
+        all_records = sheet.get_all_values()
+        text = "\n".join([",".join(row) for row in all_records])
 
-        # Always send the content as text if it's small enough
-        await update.message.reply_text(f"📄 *User Search History:*\n\n```\n{content}\n```", parse_mode="Markdown")
-
-        # Now send the file as a CSV for download
-        with open(filename, mode='rb') as file:
-            await update.message.reply_document(
-                document=file,
-                filename="user_search_history.csv",
-                caption="📄 User Search History"
-            )
-    
+        if len(text) < 4000:  # Telegram max text message size
+            await update.message.reply_text(f"📄 *User Search History:*\n\n```\n{text}\n```", parse_mode="Markdown")
+        else:
+            await update.message.reply_text("📄 Search history is too large to display here. Please check the Google Sheet directly.")
     except Exception as e:
         await update.message.reply_text(f"❌ Error reading history: {e}")
 
