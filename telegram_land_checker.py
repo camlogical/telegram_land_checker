@@ -252,7 +252,8 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✅ បានបញ្ជាក់ព័ត៌មានរបស់អ្នកជោគជ័យ ✅\n\n\n"
         "🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី (MLMUPC Land info Checker Bot!)\n\n"
         "សូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001\n\n\n"
-        "Bot Developed with ❤️ by MNPT."
+        "Bot Developed with ❤️ by MNPT.",
+        reply_markup=ReplyKeyboardRemove()  # <-- THIS LINE removes the VERIFY button
     )
 
 async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
