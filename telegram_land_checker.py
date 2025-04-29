@@ -112,9 +112,9 @@ def save_user_search(user_id, username, land_number):
             str(user_id),
             username,
             user_info.get("full_name", ""),
-            user_info.get("phone_number", "")
+            user_info.get("phone_number", ""),
             land_number,
-            timestamp,
+            timestamp
         ])
     except Exception as e:
         print(f"❌ Failed to save search history: {e}")
