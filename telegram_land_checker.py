@@ -14,7 +14,7 @@ from google.oauth2.service_account import Credentials
 
 # === CONFIG ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = 388876020  # 👈 Change to your Telegram ID
+ADMIN_ID = 388876020
 SHEET_ID = "1N_LM9CM4egDeEVVbWx7GK8h5usQbg_EEDJZBNt8M1oY"
 SHEET_TAB = "User_Search_History"
 USER_CONTACT_TAB = "User_Contacts"
@@ -22,7 +22,7 @@ USER_DB_FILE = "users.json"
 
 # === GLOBALS ===
 user_database = {}
-user_locks = {}  # <-- Add user locks dictionary
+user_locks = {}
 
 # === FLASK SETUP ===
 app = Flask(__name__)
@@ -54,8 +54,7 @@ def get_gsheet_client():
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive'
     ])
-    client = gspread.authorize(creds)
-    return client
+    return gspread.authorize(creds)
 
 # === SAVE & LOAD USER DATABASE ===
 def save_user_database():
@@ -80,7 +79,7 @@ def save_all_users_to_gsheet():
         if not user_database:
             print("⚠️ No users to save.")
             return
-        
+
         client = get_gsheet_client()
         sheet = client.open_by_key(SHEET_ID).worksheet(USER_CONTACT_TAB)
 
@@ -94,9 +93,7 @@ def save_all_users_to_gsheet():
                 info.get("full_name", "Unknown"),
                 info.get("phone_number", "Unknown")
             ])
-
         print(f"✅ Saved {len(user_database)} users to Google Sheet.")
-        
     except Exception as e:
         print(f"❌ Failed to save users to Google Sheet: {e}")
 
@@ -120,12 +117,51 @@ def save_user_search(user_id, username, land_number):
     except Exception as e:
         print(f"❌ Failed to save search history: {e}")
 
-# === LAND DATA SCRAPER ===
+# === SAVE FULL SEARCH LOG TO ANOTHER TAB ===
+def save_full_search_log(user_id, username, land_number, result):
+    try:
+        client = get_gsheet_client()
+        full_logs_tab = "Full_Search_Logs"
+
+        try:
+            sheet = client.open_by_key(SHEET_ID).worksheet(full_logs_tab)
+        except gspread.exceptions.WorksheetNotFound:
+            sheet = client.open_by_key(SHEET_ID).add_worksheet(title=full_logs_tab, rows="1000", cols="20")
+            sheet.append_row([
+                "user_id", "username", "full_name", "phone_number",
+                "land_number", "timestamp", "status",
+                "serial_info", "location", "updated_system", "owner_info"
+            ])
+
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        user_info = user_database.get(str(user_id), {})
+
+        owner_info_str = ""
+        if isinstance(result.get("owner_info"), dict):
+            owner_info_str = "; ".join(f"{k}: {v}" for k, v in result["owner_info"].items())
+
+        sheet.append_row([
+            str(user_id),
+            username,
+            user_info.get("full_name", ""),
+            user_info.get("phone_number", ""),
+            land_number,
+            timestamp,
+            result.get("status", ""),
+            result.get("serial_info", ""),
+            result.get("location", ""),
+            result.get("updated_system", ""),
+            owner_info_str
+        ])
+    except Exception as e:
+        print(f"❌ Failed to save full search log: {e}")
+
+# === SCRAPER ===
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"}
 
-    url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
+    url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"  # Use the full URL as in your code
     headers = {"User-Agent": "Mozilla/5.0"}
     data = {"recaptchaToken": "", "landNum": land_number}
 
@@ -243,6 +279,7 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
             result = scrape_land_data(land_number)
 
             save_user_search(user_id, username, land_number)
+            save_full_search_log(user_id, username, land_number, result)
 
             if result["status"] == "found":
                 msg = f"✅ *Land Info Found for {land_number}!*\n" \
@@ -254,9 +291,8 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
                     msg += "\n📝 *ព័ត៌មានក្បាលដី៖*\n"
                     for key, value in result['owner_info'].items():
                         msg += f"   - {key} {value}\n"
-                
-                msg += "\n\nChecked from: [MLMUPC](https://mlmupc.gov.kh/electronic-cadastral-services)\nBot Developed by MNPT"
 
+                msg += "\n\nChecked from: [MLMUPC](https://mlmupc.gov.kh/electronic-cadastral-services)\nBot Developed by MNPT"
                 await update.message.reply_text(msg, parse_mode="Markdown")
 
             elif result["status"] == "not_found":
@@ -297,11 +333,8 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == "__main__":
     load_user_database()
 
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.start()
-
-    ping_thread = threading.Thread(target=auto_ping)
-    ping_thread.start()
+    threading.Thread(target=run_flask).start()
+    threading.Thread(target=auto_ping).start()
 
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
     app_bot.add_handler(CommandHandler("start", start))
