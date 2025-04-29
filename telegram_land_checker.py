@@ -3,12 +3,11 @@ import threading
 import time
 import requests
 import re
-import csv
 import json
 from datetime import datetime
 from flask import Flask
 from bs4 import BeautifulSoup
-from telegram import Update
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import gspread
 from google.oauth2.service_account import Credentials
@@ -18,6 +17,11 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 388876020  # 👈 Change to your Telegram ID
 SHEET_ID = "1N_LM9CM4egDeEVVbWx7GK8h5usQbg_EEDJZBNt8M1oY"
 SHEET_TAB = "User_Search_History"
+USER_CONTACT_TAB = "User_Contacts"  # New tab for saving contacts
+USER_DB_FILE = "users.json"  # Local user database
+
+# === GLOBALS ===
+user_database = {}
 
 # === FLASK SETUP ===
 app = Flask(__name__)
@@ -52,6 +56,49 @@ def get_gsheet_client():
     client = gspread.authorize(creds)
     return client
 
+# === SAVE & LOAD USER DATABASE ===
+def save_user_database():
+    try:
+        with open(USER_DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(user_database, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"❌ Failed to save user database: {e}")
+
+def load_user_database():
+    global user_database
+    if os.path.exists(USER_DB_FILE):
+        try:
+            with open(USER_DB_FILE, "r", encoding="utf-8") as f:
+                user_database = json.load(f)
+            print(f"✅ Loaded {len(user_database)} users from {USER_DB_FILE}")
+        except Exception as e:
+            print(f"❌ Failed to load user database: {e}")
+
+def save_all_users_to_gsheet():
+    try:
+        if not user_database:
+            print("⚠️ No users to save.")
+            return
+        
+        client = get_gsheet_client()
+        sheet = client.open_by_key(SHEET_ID).worksheet(USER_CONTACT_TAB)
+
+        sheet.clear()
+        sheet.append_row(["user_id", "username", "full_name", "phone_number"])
+
+        for user_id, info in user_database.items():
+            sheet.append_row([
+                str(user_id),
+                info.get("username", "Unknown"),
+                info.get("full_name", "Unknown"),
+                info.get("phone_number", "Unknown")
+            ])
+
+        print(f"✅ Saved {len(user_database)} users to Google Sheet.")
+        
+    except Exception as e:
+        print(f"❌ Failed to save users to Google Sheet: {e}")
+
 # === SAVE SEARCH HISTORY TO GOOGLE SHEET ===
 def save_user_search(user_id, username, land_number):
     try:
@@ -59,9 +106,16 @@ def save_user_search(user_id, username, land_number):
         sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_TAB)
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        user_info = user_database.get(str(user_id), {})
 
-        sheet.append_row([str(user_id), username, land_number, timestamp])
-
+        sheet.append_row([
+            str(user_id),
+            username,
+            land_number,
+            timestamp,
+            user_info.get("full_name", ""),
+            user_info.get("phone_number", "")
+        ])
     except Exception as e:
         print(f"❌ Failed to save search history: {e}")
 
@@ -123,15 +177,48 @@ def scrape_land_data(land_number: str) -> dict:
 
 # === BOT COMMANDS ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.message.from_user.id)
+
+    if user_id not in user_database:
+        button = KeyboardButton(text="📞 បញ្ជូនលេខទូរស័ព្ទ", request_contact=True)
+        reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text("សូមចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ជូនលេខទូរស័ព្ទរបស់អ្នក។", reply_markup=reply_markup)
+    else:
+        await update.message.reply_text(
+            "🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី (MLMUPC Land info Checker Bot!)\n\n"
+            "សូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001\n\n\n"
+            "Bot Developed with ❤️ by MNPT."
+        )
+
+async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    contact = update.message.contact
+    user_id = str(contact.user_id)
+    username = update.message.from_user.username or "Unknown"
+    full_name = update.message.from_user.full_name or "Unknown"
+    phone_number = contact.phone_number
+
+    user_database[user_id] = {
+        "username": username,
+        "full_name": full_name,
+        "phone_number": phone_number
+    }
+    save_user_database()
+    save_all_users_to_gsheet()
+
     await update.message.reply_text(
-        "🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី (MLMUPC Land info Checker Bot!)\n\n"
-        "សូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001\n\n\n"
-        "Bot Developed with ❤️ by MNPT."
+        "✅ បានរក្សាទុកព័ត៌មានរបស់អ្នក។\n\n"
+        "ឥឡូវនេះ សូមបញ្ចូលលេខក្បាលដី ដើម្បីស្វែងរកព័ត៌មាន។"
     )
 
 async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.message.from_user.id)
+    if user_id not in user_database:
+        button = KeyboardButton(text="📞 បញ្ជូនលេខទូរស័ព្ទ", request_contact=True)
+        reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text("⚠️ សូមបញ្ជូនលេខទូរស័ព្ទជាមុនសិន។", reply_markup=reply_markup)
+        return
+
     land_numbers = update.message.text.strip().split("\n")
-    user_id = update.message.from_user.id
     username = update.message.from_user.username or update.message.from_user.full_name or "Unknown"
 
     for land_number in land_numbers:
@@ -178,7 +265,7 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         history_text = ""
-        for row in data[-10:]:  # Show last 10 searches
+        for row in data[-10:]:
             history_text += f"👤 {row['username']} - {row['land_number']} at {row['timestamp']}\n"
 
         await update.message.reply_text(f"📄 *Recent User Search History:*\n\n{history_text}", parse_mode="Markdown")
@@ -188,6 +275,8 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === MAIN RUN ===
 if __name__ == "__main__":
+    load_user_database()
+
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
 
@@ -197,5 +286,6 @@ if __name__ == "__main__":
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
     app_bot.add_handler(CommandHandler("start", start))
     app_bot.add_handler(CommandHandler("history", history))
+    app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
     app_bot.run_polling()
