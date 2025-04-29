@@ -1,13 +1,1 @@
-{
-  "type": "service_account",
-  "project_id": "telegram-land-checker",
-  "private_key_id": "99fdca4dd628635f9d9b4d117c92fe3453af0994",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDVANEF7zPnfqMu\n+9fYoLinxFR4NkHqRpayUpaNBCsth6UCoW/OUJms+3/75am2YNNU4k9gUcnn3I+v\nsvhVSkcW2CSub3AO7EnL9k4vOusYaT/Hso9XjHzKv0/vaSF12xb7S+cDIlpUir5P\nd6oB6QgRWh6UYXCCbRd/xIsarZTYpUxfogM5CmDFKKe73N/5kevSuw5/KL8NoOuQ\n4PdMXxCEOsmuZr32oOhKo2resnOrNjkn5/plYNS8XXoAlsZ1LpYR7ozsj6gNqAIB\nO31xsvf00xQPfImMqdSmHA1NKcBaETBa7iiVARpJX1G3JSnqq12d39Inw3N/PQQ6\njycghq+DAgMBAAECggEAHbor8eqU8WGEr8l5MeQYcV2etlpIL8SjQobxOQQUbJnK\nR0g1nPM1x2UgUw0V9vyjcezVzCkOBzyKlyhgrTKdIkyPLgMifgqvL/aTqdbMuc7y\nllHO3JagUgGKS+z9vP+TQQYyWwcf2T212sxmHzchJ57OtsG0nJdSGMRa76G7LNL/\nuwJS3FzIeRRhKU38Zs2HH2g06C7qN0GT6jNmBNQZBRjiVaGOEOaZh/BlpEjeTt9T\n7sNGvGncD+OcCjpUH1+DvxjF+cm/pVd/afSriA9UFQqmIKouwznvIVA9IDykQUnq\nCO8irMJvCbMQicL6YZKSLqxfwxYWPUpSaUy9BX2KJQKBgQD4qmLLNjYAGq2/mamR\nkAjH60YPVivblyGdN2R9kKBDh9MIgWLq/rpUHO/JyAwKE2+ZZ7Up/XxuBfBBs8AR\nOiyhI8R5dQGBvKwVXO5Dghqayc2r8l24Wt+mu6LUaE53/O0Rnr+ADgtsEQahAFov\ncU61ZS3VPuCV2wxwWPPU0vu8DwKBgQDbSScKQhD995RbG0wK7E00R4iUgv2wZHbZ\nQBsGtPRq6FcIfbIlqaOlOP9H5Z0BcIuy70GCHZ8A6QL9gAizQGtt7EnejWiFQII1\nLRvath+99QYvhogc/aev5zdsEn+3pkHZYgoWe/wqZyQUHw0HMY7R6wK5O9lwPIRw\nyzm3I+vxTQKBgQC1AJFZCeTUvpaqWNetNQKvQvqEP109Qg0duyxSmeuOPFfIYSX3\nl+NZRpbkcdERpIQfTfX40qK4E2qG6Kht4cKKqNZi8mBeZ097XWGxkgp7kVk8R/cg\nMkWJwBsOMb6saFbH9J3AQHjf+KSynOcIkZmRQEzUZChl7ERpotYZnFnQ0QKBgQC8\n68M0tUKKaxhnfZb/+iFxnwduW4RQyd0SwoYGOzQwPsdsy04F4KbaG8bjnFCuAtZ4\nbGSVwwtP72/iEsJsHF3xsBbcJBweYTtMsPZEcY/bShPwMglmYKptg9hdxXo/MH+e\n1zY1tM/FgGK26yGARxPyinQoPgXRCnJX8t5giBQoKQKBgQDYGcC+rCU8DzEQn6Yc\n7koLd/DAT18cTL9NFPB5vD9m7rUFmZD2iUMZIQsoVWkaGEQoyQfy2zvrfHg9iAVM\n3HhYKNtKyGWqCsK48PQYIzrQrVlgAbKat18XQqJ7iq8HJ2dlk7NwzDta2SuVrMMv\nRKOTej/IC7LfmRCLtDiKE7lAsw==\n-----END PRIVATE KEY-----\n",
-  "client_email": "land1-927@telegram-land-checker.iam.gserviceaccount.com",
-  "client_id": "100301620839140154055",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/land1-927%40telegram-land-checker.iam.gserviceaccount.com",
-  "universe_domain": "googleapis.com"
-}
+
