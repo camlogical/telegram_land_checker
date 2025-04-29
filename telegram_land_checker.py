@@ -224,12 +224,19 @@ def get_user_lock(user_id):
 # === BOT COMMANDS ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
+    # Show typing indicator after /start command
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+    await asyncio.sleep(1)  # Optional sleep to simulate typing delay
 
     if user_id not in user_database:
         button = KeyboardButton(text="✅ VERIFY", request_contact=True)
         reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
+        # Show typing indicator before asking for contact info
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
         await update.message.reply_text("ដើម្បីប្រើប្រាស់សូមចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ជាក់", reply_markup=reply_markup)
     else:
+        # Show typing indicator before sending welcome message
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
         await update.message.reply_text(
             "🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី (MLMUPC Land info Checker Bot!)\n\n"
             "សូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001\n\n\n"
@@ -283,7 +290,7 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
             
             # ✅ Show "typing…" before processing each land number
             await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-            await asyncio.sleep(1.2)  # optional: makes it feel more natural
+            await asyncio.sleep(0.5)  # optional: makes it feel more natural
             
             result = scrape_land_data(land_number)
 
