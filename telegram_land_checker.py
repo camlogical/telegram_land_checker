@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 from flask import Flask
 from bs4 import BeautifulSoup
-from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import gspread
 from google.oauth2.service_account import Credentials
@@ -236,76 +236,78 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
 
     try:
         land_numbers = update.message.text.strip().split("\n")
-        username = update.message.from_user.username or update.message.from_user.full_name or "Unknown"
+
+        total_land_numbers = len(land_numbers)
+        found_count = 0
+        not_found_count = 0
+
+        # Send the initial success message
+        success_message = await update.message.reply_text(
+            f"✅ All land numbers processed successfully!\n"
+            f"✅ {found_count} found, {not_found_count} not found.",
+            parse_mode=ParseMode.MARKDOWN
+        )
 
         for land_number in land_numbers:
-            land_number = land_number.strip()
-            result = scrape_land_data(land_number)
-
-            save_user_search(user_id, username, land_number)
+            result = scrape_land_data(land_number.strip())
 
             if result["status"] == "found":
-                msg = f"✅ *Land Info Found for {land_number}!*\n" \
-                      f"⏰ *បច្ចុប្បន្នភាព៖* {result.get('updated_system', 'N/A')}\n" \
-                      f"👉 *លេខប័ណ្ណកម្មសិទ្ធិ៖* {result.get('serial_info', 'N/A')}\n" \
-                      f"📍 *ទីតាំងដី ភូមិ៖* {result.get('location', 'N/A')}\n"
+                found_count += 1
+                msg = f"✅ *Land Info Found for {land_number}*\n" \
+                      f"⏰ *Update Time:* {result.get('updated_system', 'N/A')}\n" \
+                      f"👉 *Serial Number:* {result.get('serial_info', 'N/A')}\n" \
+                      f"📍 *Location:* {result.get('location', 'N/A')}\n"
 
                 if result['owner_info']:
-                    msg += "\n📝 *ព័ត៌មានក្បាលដី៖*\n"
+                    msg += "\n📝 *Owner Information:*\n"
                     for key, value in result['owner_info'].items():
-                        msg += f"   - {key} {value}\n"
+                        msg += f"   - {key}: {value}\n"
                 
-                msg += "\n\nChecked from: [MLMUPC](https://mlmupc.gov.kh/electronic-cadastral-services)\nBot Developed by MNPT"
-
+                msg += "\n\nChecked from: [MLMUPC](https://mlmupc.gov.kh/electronic-cadastral-services)"
                 await update.message.reply_text(msg, parse_mode="Markdown")
 
             elif result["status"] == "not_found":
-                msg = f"⚠️ *{land_number}* {result.get('message', 'មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ.')}"
+                not_found_count += 1
+                msg = f"⚠️ *{land_number}* {result.get('message', 'No data found for this land number.')}"
                 await update.message.reply_text(msg, parse_mode="Markdown")
 
             else:
                 msg = f"❌ Error for *{land_number}*: {result.get('message', 'Unknown error')}."
                 await update.message.reply_text(msg, parse_mode="Markdown")
 
+        # Update the success message with final count
+        await success_message.edit_text(
+            f"✅ All land numbers processed successfully!\n"
+            f"✅ {found_count} found, {not_found_count} not found.",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+        # Schedule the deletion of the success message after 5 seconds
+        context.job_queue.run_once(delete_message, 5, context=(update.message.chat_id, success_message.message_id))
+
     finally:
         lock.release()
 
-async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.from_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ You are not authorized to view user search history.")
-        return
+# Function to delete the message after 5 seconds
+async def delete_message(context):
+    chat_id, message_id = context.job.context
+    await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
 
-    try:
-        client = get_gsheet_client()
-        sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_TAB)
-        data = sheet.get_all_records()
-
-        if not data:
-            await update.message.reply_text("⚠️ No user search history found.")
-            return
-
-        history_text = ""
-        for row in data[-10:]:
-            history_text += f"👤 {row['username']} - {row['land_number']} at {row['timestamp']}\n"
-
-        await update.message.reply_text(f"📄 *Recent User Search History:*\n\n{history_text}", parse_mode="Markdown")
-
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error reading history: {e}")
-
-# === MAIN RUN ===
+# === MAIN ===
 if __name__ == "__main__":
     load_user_database()
 
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.start()
+    # Start Flask server and auto-ping thread
+    threading.Thread(target=run_flask).start()
+    threading.Thread(target=auto_ping, daemon=True).start()
 
-    ping_thread = threading.Thread(target=auto_ping)
-    ping_thread.start()
+    # Create the Telegram bot application
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
-    app_bot.add_handler(CommandHandler("start", start))
-    app_bot.add_handler(CommandHandler("history", history))
-    app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
-    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
-    app_bot.run_polling()
+    # Register command handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.Contact, handle_contact))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
+
+    # Run the bot
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
