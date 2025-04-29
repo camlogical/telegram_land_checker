@@ -224,24 +224,30 @@ def get_user_lock(user_id):
 # === BOT COMMANDS ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
-    # Show typing indicator after /start command
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-    await asyncio.sleep(1)  # Optional sleep to simulate typing delay
 
-    if user_id not in user_database:
-        button = KeyboardButton(text="✅ VERIFY", request_contact=True)
-        reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
-        # Show typing indicator before asking for contact info
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-        await update.message.reply_text("ដើម្បីប្រើប្រាស់សូមចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ជាក់", reply_markup=reply_markup)
-    else:
-        # Show typing indicator before sending welcome message
+    # Check if the user has contact info already in the Google Sheet
+    client = get_gsheet_client()
+    sheet = client.open_by_key(SHEET_ID).worksheet(USER_CONTACT_TAB)
+    user_data = sheet.get_all_records()
+
+    # Check if the user is already in the contacts sheet
+    user_in_sheet = any(str(user['user_id']) == user_id for user in user_data)
+
+    if user_in_sheet:
+        # User is already registered, send welcome message
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
         await update.message.reply_text(
             "🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី (MLMUPC Land info Checker Bot!)\n\n"
             "សូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001\n\n\n"
             "Bot Developed with ❤️ by MNPT."
         )
+    else:
+        # Show typing indicator and ask for contact info
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+        button = KeyboardButton(text="✅ VERIFY", request_contact=True)
+        reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
+        await update.message.reply_text("ដើម្បីប្រើប្រាស់សូមចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ជាក់", reply_markup=reply_markup)
+
 
 async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     contact = update.message.contact
