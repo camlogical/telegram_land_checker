@@ -17,11 +17,12 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = 388876020  # 👈 Change to your Telegram ID
 SHEET_ID = "1N_LM9CM4egDeEVVbWx7GK8h5usQbg_EEDJZBNt8M1oY"
 SHEET_TAB = "User_Search_History"
-USER_CONTACT_TAB = "User_Contacts"  # New tab for saving contacts
-USER_DB_FILE = "users.json"  # Local user database
+USER_CONTACT_TAB = "User_Contacts"
+USER_DB_FILE = "users.json"
 
 # === GLOBALS ===
 user_database = {}
+user_locks = {}  # <-- Add user locks dictionary
 
 # === FLASK SETUP ===
 app = Flask(__name__)
@@ -175,6 +176,12 @@ def scrape_land_data(land_number: str) -> dict:
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# === USER LOCK ===
+def get_user_lock(user_id):
+    if user_id not in user_locks:
+        user_locks[user_id] = threading.Lock()
+    return user_locks[user_id]
+
 # === BOT COMMANDS ===
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
@@ -206,49 +213,62 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_all_users_to_gsheet()
 
     await update.message.reply_text(
-        "✅ បានបញ្ជាក់ព័ត៌មានរបស់អ្នកជោគជ័យ។\n\n"
-        "ឥឡូវនេះ សូមបញ្ចូលលេខក្បាលដី ដើម្បីស្វែងរកព័ត៌មាន។"
+        "✅ បានបញ្ជាក់ព័ត៌មានរបស់អ្នកជោគជ័យ ✅\n\n\n"
+        "🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី (MLMUPC Land info Checker Bot!)\n\n"
+        "សូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001\n\n\n"
+        "Bot Developed with ❤️ by MNPT."
     )
 
 async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
+
     if user_id not in user_database:
         button = KeyboardButton(text="✅ VERIFY", request_contact=True)
         reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
         await update.message.reply_text("ដើម្បីប្រើប្រាស់សូមចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ជាក់", reply_markup=reply_markup)
         return
 
-    land_numbers = update.message.text.strip().split("\n")
-    username = update.message.from_user.username or update.message.from_user.full_name or "Unknown"
+    lock = get_user_lock(user_id)
 
-    for land_number in land_numbers:
-        land_number = land_number.strip()
-        result = scrape_land_data(land_number)
+    if not lock.acquire(blocking=False):
+        await update.message.reply_text("⚠️ប្រព័ន្ធកំពុងរវល់⚠️\nសូមមេត្តារង់ចាំ ឬសូមសាកល្បងស្វែងរកម្ដងទៀត។")
+        return
 
-        save_user_search(user_id, username, land_number)
+    try:
+        land_numbers = update.message.text.strip().split("\n")
+        username = update.message.from_user.username or update.message.from_user.full_name or "Unknown"
 
-        if result["status"] == "found":
-            msg = f"✅ *Land Info Found for {land_number}!*\n" \
-                  f"⏰ *បច្ចុប្បន្នភាព៖* {result.get('updated_system', 'N/A')}\n" \
-                  f"👉 *លេខប័ណ្ណកម្មសិទ្ធិ៖* {result.get('serial_info', 'N/A')}\n" \
-                  f"📍 *ទីតាំងដី ភូមិ៖* {result.get('location', 'N/A')}\n"
+        for land_number in land_numbers:
+            land_number = land_number.strip()
+            result = scrape_land_data(land_number)
 
-            if result['owner_info']:
-                msg += "\n📝 *ព័ត៌មានក្បាលដី៖*\n"
-                for key, value in result['owner_info'].items():
-                    msg += f"   - {key} {value}\n"
-            
-            msg += "\n\nChecked data from: [MLMUPC](https://mlmupc.gov.kh/electronic-cadastral-services)\nBot Developed by MNPT"
+            save_user_search(user_id, username, land_number)
 
-            await update.message.reply_text(msg, parse_mode="Markdown")
-        
-        elif result["status"] == "not_found":
-            msg = f"⚠️ *{land_number}* {result.get('message', 'មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ.')}"
-            await update.message.reply_text(msg, parse_mode="Markdown")
-        
-        else:
-            msg = f"❌ Error for *{land_number}*: {result.get('message', 'Unknown error')}."
-            await update.message.reply_text(msg, parse_mode="Markdown")
+            if result["status"] == "found":
+                msg = f"✅ *Land Info Found for {land_number}!*\n" \
+                      f"⏰ *បច្ចុប្បន្នភាព៖* {result.get('updated_system', 'N/A')}\n" \
+                      f"👉 *លេខប័ណ្ណកម្មសិទ្ធិ៖* {result.get('serial_info', 'N/A')}\n" \
+                      f"📍 *ទីតាំងដី ភូមិ៖* {result.get('location', 'N/A')}\n"
+
+                if result['owner_info']:
+                    msg += "\n📝 *ព័ត៌មានក្បាលដី៖*\n"
+                    for key, value in result['owner_info'].items():
+                        msg += f"   - {key} {value}\n"
+                
+                msg += "\n\nChecked from: [MLMUPC](https://mlmupc.gov.kh/electronic-cadastral-services)\nBot Developed by MNPT"
+
+                await update.message.reply_text(msg, parse_mode="Markdown")
+
+            elif result["status"] == "not_found":
+                msg = f"⚠️ *{land_number}* {result.get('message', 'មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ.')}"
+                await update.message.reply_text(msg, parse_mode="Markdown")
+
+            else:
+                msg = f"❌ Error for *{land_number}*: {result.get('message', 'Unknown error')}."
+                await update.message.reply_text(msg, parse_mode="Markdown")
+
+    finally:
+        lock.release()
 
 async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
