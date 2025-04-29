@@ -236,6 +236,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_in_sheet:
         # User is already registered, send welcome message
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+        await asyncio.sleep(1)  # Optional delay
         await update.message.reply_text(
             "🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី (MLMUPC Land info Checker Bot!)\n\n"
             "សូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001\n\n\n"
@@ -244,6 +245,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # Show typing indicator and ask for contact info
         await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+        await asyncio.sleep(1)  # Optional delay
         button = KeyboardButton(text="✅ VERIFY", request_contact=True)
         reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
         await update.message.reply_text("ដើម្បីប្រើប្រាស់សូមចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ជាក់", reply_markup=reply_markup)
