@@ -10,8 +10,10 @@ from bs4 import BeautifulSoup
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from telegram import ReplyKeyboardRemove
+from telegram.constants import ChatAction
 import gspread
 from google.oauth2.service_account import Credentials
+import asyncio
 
 # === CONFIG ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -278,8 +280,10 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
 
         for land_number in land_numbers:
             land_number = land_number.strip()
-            # Show typing action while processing
-            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+            
+            # ✅ Show "typing…" before processing each land number
+            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+            await asyncio.sleep(1.2)  # optional: makes it feel more natural
             
             result = scrape_land_data(land_number)
 
