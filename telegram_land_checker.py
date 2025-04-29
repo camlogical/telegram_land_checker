@@ -111,10 +111,10 @@ def save_user_search(user_id, username, land_number):
         sheet.append_row([
             str(user_id),
             username,
-            land_number,
-            timestamp,
             user_info.get("full_name", ""),
             user_info.get("phone_number", "")
+            land_number,
+            timestamp,
         ])
     except Exception as e:
         print(f"❌ Failed to save search history: {e}")
@@ -180,9 +180,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
 
     if user_id not in user_database:
-        button = KeyboardButton(text="📞 បញ្ជូនលេខទូរស័ព្ទ", request_contact=True)
+        button = KeyboardButton(text="✅ VERIFY", request_contact=True)
         reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
-        await update.message.reply_text("សូមចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ជូនលេខទូរស័ព្ទរបស់អ្នក។", reply_markup=reply_markup)
+        await update.message.reply_text("ដើម្បីប្រើប្រាស់សូមចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ជាក់", reply_markup=reply_markup)
     else:
         await update.message.reply_text(
             "🏡 សូមស្វាគមន៍មកកាន់កម្មវិធីស្វែងរកព័ត៌មានអំពីក្បាលដី (MLMUPC Land info Checker Bot!)\n\n"
@@ -206,16 +206,16 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_all_users_to_gsheet()
 
     await update.message.reply_text(
-        "✅ បានរក្សាទុកព័ត៌មានរបស់អ្នក។\n\n"
+        "✅ បានបញ្ជាក់ព័ត៌មានរបស់អ្នកជោគជ័យ។\n\n"
         "ឥឡូវនេះ សូមបញ្ចូលលេខក្បាលដី ដើម្បីស្វែងរកព័ត៌មាន។"
     )
 
 async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
     if user_id not in user_database:
-        button = KeyboardButton(text="📞 បញ្ជូនលេខទូរស័ព្ទ", request_contact=True)
+        button = KeyboardButton(text="✅ VERIFY", request_contact=True)
         reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
-        await update.message.reply_text("⚠️ សូមបញ្ជូនលេខទូរស័ព្ទជាមុនសិន។", reply_markup=reply_markup)
+        await update.message.reply_text("ដើម្បីប្រើប្រាស់សូមចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ជាក់", reply_markup=reply_markup)
         return
 
     land_numbers = update.message.text.strip().split("\n")
