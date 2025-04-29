@@ -7,7 +7,8 @@ import json
 from datetime import datetime
 from flask import Flask
 from bs4 import BeautifulSoup
-from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ParseMode
+from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
+from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 import gspread
 from google.oauth2.service_account import Credentials
