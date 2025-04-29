@@ -9,6 +9,7 @@ from flask import Flask
 from bs4 import BeautifulSoup
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import ReplyKeyboardRemove
 import gspread
 from google.oauth2.service_account import Credentials
 
