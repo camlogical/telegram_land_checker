@@ -278,6 +278,9 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
 
         for land_number in land_numbers:
             land_number = land_number.strip()
+            # Show typing action while processing
+            await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+            
             result = scrape_land_data(land_number)
 
             save_user_search(user_id, username, land_number)
