@@ -86,19 +86,24 @@ def save_all_users_to_gsheet():
         client = get_gsheet_client()
         sheet = client.open_by_key(SHEET_ID).worksheet(USER_CONTACT_TAB)
 
-        sheet.clear()
-        sheet.append_row(["user_id", "username", "full_name", "phone_number"])
+        existing_data = sheet.get_all_records()
+        existing_user_ids = {str(row["user_id"]) for row in existing_data}
 
+        new_entries = 0
         for user_id, info in user_database.items():
-            sheet.append_row([
-                str(user_id),
-                info.get("username", "Unknown"),
-                info.get("full_name", "Unknown"),
-                info.get("phone_number", "Unknown")
-            ])
-        print(f"✅ Saved {len(user_database)} users to Google Sheet.")
+            if str(user_id) not in existing_user_ids:
+                sheet.append_row([
+                    str(user_id),
+                    info.get("username", "Unknown"),
+                    info.get("full_name", "Unknown"),
+                    info.get("phone_number", "Unknown")
+                ])
+                new_entries += 1
+
+        print(f"✅ Saved {new_entries} new users to Google Sheet.")
     except Exception as e:
         print(f"❌ Failed to save users to Google Sheet: {e}")
+
 
 # === SAVE SEARCH HISTORY TO GOOGLE SHEET ===
 def save_user_search(user_id, username, land_number):
