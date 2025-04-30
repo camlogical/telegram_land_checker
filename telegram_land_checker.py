@@ -376,7 +376,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ You are not authorized to use this command.")
         return
 
-    # Get the message to broadcast
+    # Ensure a message is provided
     if not context.args:
         await update.message.reply_text("⚠️ Usage: /broadcast <your message>")
         return
@@ -384,29 +384,34 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = " ".join(context.args)
 
     try:
+        # Attempt to fetch users from Google Sheet
         client = get_gsheet_client()
-        sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_TAB)
-        data = sheet.get_all_records()
+        sheet = client.open_by_key(SHEET_ID).worksheet(USER_CONTACT_TAB)
+        user_records = sheet.get_all_records()
 
         success = 0
         failed = 0
 
-        for user in users:
+        # Loop through each user and send the message
+        for user in user_records:
             user_id = user.get("user_id")
             if user_id:
                 try:
                     await context.bot.send_message(chat_id=int(user_id), text=message)
                     success += 1
-                    await asyncio.sleep(0.05)  # Slight delay to avoid hitting Telegram rate limits
+                    await asyncio.sleep(0.05)  # Avoid hitting Telegram rate limits
                 except Exception as e:
-                    print(f"❌ Failed to send to {user_id}: {e}")
+                    print(f"❌ Could not send to {user_id}: {e}")
                     failed += 1
 
-        summary = f"✅ Broadcast complete!\nSuccess: {success}\nFailed: {failed}"
-        await update.message.reply_text(summary)
+        await update.message.reply_text(
+            f"📢 Broadcast complete.\n✅ Sent: {success}\n❌ Failed: {failed}"
+        )
 
     except Exception as e:
-        await update.message.reply_text(f"❌ Error broadcasting: {e}")
+        # Handles errors like sheet not found or bad credentials
+        await update.message.reply_text(f"❌ Error broadcasting: {str(e)}")
+
 
 
 # === MAIN RUN ===
