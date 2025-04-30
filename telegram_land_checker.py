@@ -279,11 +279,27 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = str(update.message.from_user.id)
 
+    # First check local memory
     if user_id not in user_database:
-        button = KeyboardButton(text="✅ VERIFY", request_contact=True)
-        reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
-        await update.message.reply_text("ដើម្បីប្រើប្រាស់សូមចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ជាក់", reply_markup=reply_markup)
-        return
+        # Fallback to Google Sheet check
+        client = get_gsheet_client()
+        sheet = client.open_by_key(SHEET_ID).worksheet(USER_CONTACT_TAB)
+        user_data = sheet.get_all_records()
+
+        user_row = next((user for user in user_data if str(user['user_id']) == user_id), None)
+        if user_row:
+            user_database[user_id] = {
+                "username": user_row.get("username", "Unknown"),
+                "full_name": user_row.get("full_name", "Unknown"),
+                "phone_number": user_row.get("phone_number", "Unknown")
+            }
+            save_user_database()
+        else:
+            button = KeyboardButton(text="✅ VERIFY", request_contact=True)
+            reply_markup = ReplyKeyboardMarkup([[button]], resize_keyboard=True, one_time_keyboard=True)
+            await update.message.reply_text("ដើម្បីប្រើប្រាស់សូមចុចប៊ូតុងខាងក្រោមដើម្បីបញ្ជាក់", reply_markup=reply_markup)
+            return
+
 
     lock = get_user_lock(user_id)
 
