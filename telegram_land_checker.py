@@ -385,8 +385,8 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         client = get_gsheet_client()
-        sheet = client.open_by_key(SHEET_ID).worksheet(USER_CONTACT_TAB)
-        users = sheet.get_all_records()
+        sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_TAB)
+        data = sheet.get_all_records()
 
         success = 0
         failed = 0
