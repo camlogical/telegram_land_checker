@@ -166,59 +166,59 @@ def save_full_search_log(user_id, username, land_number, result):
 
 # === SCRAPER ===
 def scrape_land_data(land_number: str) -> dict:
-    if not re.match(r'^\d{8}-\d{4}$', land_number):
-        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"}
+    import requests
+    from bs4 import BeautifulSoup
+    import re
 
-    url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"  # Use the full URL as in your code
+    if not re.match(r'^\d{8}-\d{4}$', land_number):
+        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស."}
+
+    url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
     headers = {"User-Agent": "Mozilla/5.0"}
     data = {"recaptchaToken": "", "landNum": land_number}
 
     try:
         response = requests.post(url, headers=headers, data=data, timeout=10)
-        if response.status_code != 200:
+        if response.status_code == 403:
+            return {"status": "error", "message": "Access denied (403). Try rotating User-Agent or use proxy."}
+        elif response.status_code != 200:
             return {"status": "error", "message": f"HTTP error {response.status_code}"}
 
         html = response.text
-
         if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
 
-        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:
-            status = "found"
-        else:
+        soup = BeautifulSoup(html, "html.parser")
+
+        # Check if key data exists
+        if soup.find("span", id="serail_info") is None:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
 
-        def extract_between(text, left, right):
-            try:
-                return text.split(left)[1].split(right)[0].strip()
-            except:
-                return ""
+        # Extract fields
+        serial_info = soup.find("span", id="serail_info").text.strip()
+        updated_system = soup.find("p", class_="khmerfont").find("span").text.strip()
 
-        serial_info = extract_between(html, 'id="serail_info">', '</span></td>')
-        location = extract_between(html, '<span>ភូមិ ៖ ', '</span>')
-        updated_system = extract_between(html, '(ធ្វើបច្ចុប្បន្នភាព: <span>', '</span>)</p>')
+        # Location block (combine full line)
+        location_span = soup.find("span", string=re.compile("ភូមិ"))
+        location = location_span.text.strip() if location_span else ""
 
-        owner_info = {}
-        soup = BeautifulSoup(html, 'html.parser')
-        table = soup.find("table", class_="table table-bordered")
-        if table:
-            rows = table.find_all("tr")
-            for row in rows:
-                cells = row.find_all("td")
-                if len(cells) == 2:
-                    key = cells[0].get_text(strip=True)
-                    value = cells[1].get_text(strip=True)
-                    owner_info[key] = value
+        # Owner info block
+        owner_row = soup.find("td", class_="khmerfont", string="ម្ចាស់កម្មសិទ្ធិ៖")
+        owner_info = owner_row.find_next_sibling("td").text.strip() if owner_row else ""
 
         return {
-            "status": status,
+            "status": "found",
             "serial_info": serial_info,
             "location": location,
             "updated_system": updated_system,
-            "owner_info": owner_info
+            "owner_info": {
+                "ម្ចាស់កម្មសិទ្ធិ": owner_info
+            }
         }
+
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 # === USER LOCK ===
 def get_user_lock(user_id):
