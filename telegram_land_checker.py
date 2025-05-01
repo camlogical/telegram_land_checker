@@ -165,34 +165,47 @@ def save_full_search_log(user_id, username, land_number, result):
         print(f"❌ Failed to save full search log: {e}")
 
 # === SCRAPER ===
+import requests
+from bs4 import BeautifulSoup
+import re
+
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
-        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"}
+        return {
+            "status": "not_found",
+            "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"
+        }
 
-    url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"  # Use the full URL as in your code
+    # Digest value (you can parameterize if it changes later)
+    digest = "Dvy+5MEhP2/36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC/RYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y/+mHCaFYP/n41B9EAEQvuLVovWSVRG75PDNCTZMtwdu/5+F5xV+7InLXEhfFbVFdL65u3NN/ueAxB5fBNsV9+GWVn7CsCsR+/rfng5f0MfLx965CvXSJS2BZU22/eUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW+zcIi+r8uCLKKUmuAfAcpsJZn95dAEIf"
+
+    url = "https://miniapp.mlmupc.gov.kh/search"
+    referer = f"https://miniapp.mlmupc.gov.kh/search?digest={requests.utils.quote(digest)}"
+
+    session = requests.Session()
     headers = {
-    "Accept-Encoding": "gzip, deflate, br, zstd",
-    "Accept-Language": "en-GB,en;q=0.9,en-US;q=0.8",
-    "Cache-Control": "max-age=0",
-    "Connection": "keep-alive",
-    "Content-Type": "application/x-www-form-urlencoded",
-    "Host": "miniapp.mlmupc.gov.kh",
-    "Origin": "https://miniapp.mlmupc.gov.kh",
-    "Referer": "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf",
-    "sec-ch-ua": "\"Chromium\";v=\"134\", \"Not:A-Brand\";v=\"24\", \"Microsoft Edge\";v=\"134\"",
-    "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": "\"Windows\"",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "same-origin",
-    "Sec-Fetch-User": "?1",
-    "Upgrade-Insecure-Requests": "1",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0"
-}
-    data = {"recaptchaToken": "", "landNum": land_number}
+        "Host": "miniapp.mlmupc.gov.kh",
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari/600.2.5 ABAMobile/5.0.64",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Referer": referer,
+        "Origin": "https://miniapp.mlmupc.gov.kh",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Cookie": "JSESSIONID=D9728DA602983E15B8E7D3E6685F3434; 1c4a45493a8ef4336da34d345ef6759f=5454eb6816ebdc7418551ece7b6f3093"
+    }
+
+    payload = [
+    ("recaptchaToken", ""),
+    ("landNum", land_number)
+]
 
     try:
-        response = requests.post(url, headers=headers, data=data, timeout=10)
+        response = session.post(url, headers=headers, data=payload, timeout=10)
         if response.status_code != 200:
             return {"status": "error", "message": f"HTTP error {response.status_code}"}
 
@@ -235,8 +248,10 @@ def scrape_land_data(land_number: str) -> dict:
             "updated_system": updated_system,
             "owner_info": owner_info
         }
+
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 # === USER LOCK ===
 def get_user_lock(user_id):
