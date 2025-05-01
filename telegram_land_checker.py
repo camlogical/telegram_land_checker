@@ -166,9 +166,6 @@ def save_full_search_log(user_id, username, land_number, result):
 
 # === SCRAPER ===
 def scrape_land_data(land_number: str) -> dict:
-    import requests
-    from bs4 import BeautifulSoup
-    import re
 
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស."}
