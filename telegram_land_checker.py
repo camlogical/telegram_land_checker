@@ -186,8 +186,7 @@ def scrape_land_data(land_number: str) -> dict:
             "Connection": "keep-alive",
             "Sec-Fetch-Site": "none",
             "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Dest": "document",
-            "Cookie": "1c4a45493a8ef4336da34d345ef6759f=5454eb6816ebdc7418551ece7b6f3093"
+            "Sec-Fetch-Dest": "document"
         }
 
         r1 = session.get(digest_url, headers=headers_get, timeout=10)
