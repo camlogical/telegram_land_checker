@@ -209,8 +209,14 @@ def scrape_land_data(land_number: str) -> dict:
             if r1.status_code != 200:
                 return {"status": "error", "message": f"Step 1 failed: {r1.status_code}"}
 
-            # Step 2 - POST land number
+            # Step 1 - Get cookies from the session
+            cookies = session.cookies.get_dict()
+            print(f"Cookies from Step 1: {cookies}")
+
+            # Step 2 - POST land number with the cookies from Step 1
             data = {"recaptchaToken": "", "landNum": land_number}
+            headers_post["Cookie"] = "; ".join([f"{key}={value}" for key, value in cookies.items()])
+
             r2 = session.post(post_url, headers=headers_post, data=data)
             if r2.status_code != 200:
                 return {"status": "error", "message": f"Step 2 failed: {r2.status_code}"}
@@ -255,6 +261,7 @@ def scrape_land_data(land_number: str) -> dict:
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 # === USER LOCK ===
 def get_user_lock(user_id):
