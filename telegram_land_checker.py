@@ -14,8 +14,6 @@ from telegram.constants import ChatAction
 import gspread
 from google.oauth2.service_account import Credentials
 import asyncio
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 
 # === CONFIG ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -167,47 +165,27 @@ def save_full_search_log(user_id, username, land_number, result):
         print(f"❌ Failed to save full search log: {e}")
 
 # === SCRAPER ===
-
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
-        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស."}
+        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"}
+
+    url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"  # Use the full URL as in your code
+    headers = {"User-Agent": "Mozilla/5.0"}
+    data = f"recaptchaToken={""}&landNum={land_number}"
 
     try:
-        options = Options()
-        options.headless = True
-        options.add_argument('--disable-blink-features=AutomationControlled')
-        options.add_argument("--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari/600.2.5 ABAMobile/5.0.64")
+        response = requests.post(url, headers=headers, data=data, timeout=10)
+        if response.status_code != 200:
+            return {"status": "error", "message": f"HTTP error {response.status_code}"}
 
-        driver = webdriver.Chrome(options=options)
-        url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEh..."
-
-        driver.get(url)
-        time.sleep(3)  # Wait for JS to load
-
-        # Post via JavaScript instead of raw requests
-        driver.execute_script(f'''
-            var form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/search';
-            var input1 = document.createElement('input');
-            input1.name = 'recaptchaToken';
-            input1.value = '';
-            var input2 = document.createElement('input');
-            input2.name = 'landNum';
-            input2.value = '{land_number}';
-            form.appendChild(input1);
-            form.appendChild(input2);
-            document.body.appendChild(form);
-            form.submit();
-        ''')
-        time.sleep(3)
-
-        html = driver.page_source
-        driver.quit()
+        html = response.text
 
         if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
-        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" not in html:
+
+        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:
+            status = "found"
+        else:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
 
         def extract_between(text, left, right):
@@ -220,8 +198,8 @@ def scrape_land_data(land_number: str) -> dict:
         location = extract_between(html, '<span>ភូមិ ៖ ', '</span>')
         updated_system = extract_between(html, '(ធ្វើបច្ចុប្បន្នភាព: <span>', '</span>)</p>')
 
-        soup = BeautifulSoup(html, 'html.parser')
         owner_info = {}
+        soup = BeautifulSoup(html, 'html.parser')
         table = soup.find("table", class_="table table-bordered")
         if table:
             rows = table.find_all("tr")
@@ -233,17 +211,14 @@ def scrape_land_data(land_number: str) -> dict:
                     owner_info[key] = value
 
         return {
-            "status": "found",
+            "status": status,
             "serial_info": serial_info,
             "location": location,
             "updated_system": updated_system,
             "owner_info": owner_info
         }
-
     except Exception as e:
         return {"status": "error", "message": str(e)}
-
-
 
 # === USER LOCK ===
 def get_user_lock(user_id):
@@ -396,6 +371,44 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Error reading history: {e}")
 
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.from_user.id != ADMIN_ID:
+        await update.message.reply_text("❌ You are not authorized to use this command.")
+        return
+
+    if not context.args:
+        await update.message.reply_text("⚠️ Usage: /broadcast <your message>")
+        return
+
+    message = " ".join(context.args)
+
+    try:
+        # Get the Google Sheet and user records
+        client = get_gsheet_client()
+        sheet = client.open_by_key(SHEET_ID).worksheet(USER_CONTACT_TAB)
+        user_records = sheet.get_all_records()  # This returns a list of dicts
+
+        success = 0
+        failed = 0
+
+        # Iterate through user records instead of undefined 'users'
+        for user in user_records:
+            user_id = user.get("user_id")
+            if user_id:
+                try:
+                    await context.bot.send_message(chat_id=int(user_id), text=message)
+                    success += 1
+                    await asyncio.sleep(0.05)
+                except Exception as e:
+                    print(f"❌ Failed to send to {user_id}: {e}")
+                    failed += 1
+
+        await update.message.reply_text(
+            f"📢 Broadcast complete.\n✅ Sent: {success}\n❌ Failed: {failed}"
+        )
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error broadcasting: {str(e)}")
 
 
 
@@ -410,6 +423,7 @@ if __name__ == "__main__":
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
     app_bot.add_handler(CommandHandler("start", start))
     app_bot.add_handler(CommandHandler("history", history))
+    app_bot.add_handler(CommandHandler("broadcast", broadcast))
     app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
     app_bot.run_polling()
