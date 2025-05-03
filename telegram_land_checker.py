@@ -167,25 +167,60 @@ def save_full_search_log(user_id, username, land_number, result):
 # === SCRAPER ===
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
-        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"}
+        return {
+            "status": "not_found",
+            "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"
+        }
 
-    url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"  # Use the full URL as in your code
-    headers = {"User-Agent": "Mozilla/5.0"}
-    data = {"recaptchaToken": "", "landNum": land_number}
+    digest_url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
+    post_url = "https://miniapp.mlmupc.gov.kh/search"
+
+    headers_common = {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari/600.2.5 ABAMobile/5.0.64",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+    }
+
+    headers_get = {
+        **headers_common,
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Host": "miniapp.mlmupc.gov.kh",
+    }
+
+    headers_post = {
+        **headers_common,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Origin": "https://miniapp.mlmupc.gov.kh",
+        "Referer": digest_url,
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Host": "miniapp.mlmupc.gov.kh",
+    }
 
     try:
-        response = requests.post(url, headers=headers, data=data, timeout=10)
-        if response.status_code != 200:
-            return {"status": "error", "message": f"HTTP error {response.status_code}"}
+        with requests.Session() as session:
+            # Step 1 - GET digest URL to set cookies
+            r1 = session.get(digest_url, headers=headers_get)
+            if r1.status_code != 200:
+                return {"status": "error", "message": f"Step 1 failed: {r1.status_code}"}
 
-        html = response.text
+            # Step 2 - POST land number
+            data = {"recaptchaToken": "", "landNum": land_number}
+            r2 = session.post(post_url, headers=headers_post, data=data)
+            if r2.status_code != 200:
+                return {"status": "error", "message": f"Step 2 failed: {r2.status_code}"}
+
+            html = r2.text
 
         if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
 
-        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:
-            status = "found"
-        else:
+        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" not in html:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
 
         def extract_between(text, left, right):
@@ -211,12 +246,13 @@ def scrape_land_data(land_number: str) -> dict:
                     owner_info[key] = value
 
         return {
-            "status": status,
+            "status": "found",
             "serial_info": serial_info,
             "location": location,
             "updated_system": updated_system,
             "owner_info": owner_info
         }
+
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
