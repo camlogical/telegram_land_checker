@@ -371,44 +371,6 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Error reading history: {e}")
 
-async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.from_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ You are not authorized to use this command.")
-        return
-
-    if not context.args:
-        await update.message.reply_text("⚠️ Usage: /broadcast <your message>")
-        return
-
-    message = " ".join(context.args)
-
-    try:
-        # Get the Google Sheet and user records
-        client = get_gsheet_client()
-        sheet = client.open_by_key(SHEET_ID).worksheet(USER_CONTACT_TAB)
-        user_records = sheet.get_all_records()  # This returns a list of dicts
-
-        success = 0
-        failed = 0
-
-        # Iterate through user records instead of undefined 'users'
-        for user in user_records:
-            user_id = user.get("user_id")
-            if user_id:
-                try:
-                    await context.bot.send_message(chat_id=int(user_id), text=message)
-                    success += 1
-                    await asyncio.sleep(0.05)
-                except Exception as e:
-                    print(f"❌ Failed to send to {user_id}: {e}")
-                    failed += 1
-
-        await update.message.reply_text(
-            f"📢 Broadcast complete.\n✅ Sent: {success}\n❌ Failed: {failed}"
-        )
-
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error broadcasting: {str(e)}")
 
 
 
@@ -423,7 +385,6 @@ if __name__ == "__main__":
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
     app_bot.add_handler(CommandHandler("start", start))
     app_bot.add_handler(CommandHandler("history", history))
-    app_bot.add_handler(CommandHandler("broadcast", broadcast))
     app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
     app_bot.run_polling()
