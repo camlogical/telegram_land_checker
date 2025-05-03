@@ -165,6 +165,10 @@ def save_full_search_log(user_id, username, land_number, result):
         print(f"❌ Failed to save full search log: {e}")
 
 # === SCRAPER ===
+import requests
+import re
+from bs4 import BeautifulSoup
+
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {
@@ -175,49 +179,43 @@ def scrape_land_data(land_number: str) -> dict:
     try:
         session = requests.Session()
 
-        # Step 1: GET request with digest
+        # Step 1: GET digest page to get session cookie
         digest_url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
         headers_get = {
-            "Host": "miniapp.mlmupc.gov.kh",
-            "Sec-Fetch-Site": "none",
-            "Connection": "keep-alive",
-            "Sec-Fetch-Mode": "navigate",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari/600.2.5 ABAMobile/5.0.64",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br"
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
         }
-        session.get(digest_url, headers=headers_get, timeout=10)
+        r1 = session.get(digest_url, headers=headers_get, timeout=10)
+        if r1.status_code != 200:
+            return {"status": "error", "message": f"Step 1 failed: {r1.status_code}"}
 
-        # Step 2: POST request with land number
+        # Get cookies from session (JSESSIONID will be auto stored in session)
+        # Step 2: POST landNum
         post_url = "https://miniapp.mlmupc.gov.kh/search"
         post_data = f"recaptchaToken=&landNum={land_number}"
         headers_post = {
-            "Host": "miniapp.mlmupc.gov.kh",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Sec-Fetch-Site": "same-origin",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Sec-Fetch-Mode": "navigate",
+            "User-Agent": headers_get["User-Agent"],
+            "Accept": headers_get["Accept"],
+            "Accept-Language": headers_get["Accept-Language"],
+            "Accept-Encoding": headers_get["Accept-Encoding"],
             "Content-Type": "application/x-www-form-urlencoded",
             "Origin": "https://miniapp.mlmupc.gov.kh",
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari/600.2.5 ABAMobile/5.0.64",
             "Referer": digest_url,
             "Connection": "keep-alive",
-            "Sec-Fetch-Dest": "document"
         }
-        response = session.post(post_url, headers=headers_post, data=post_data, timeout=10)
-        if response.status_code != 200:
-            return {"status": "error", "message": f"HTTP error {response.status_code}"}
+        r2 = session.post(post_url, headers=headers_post, data=post_data, timeout=10)
+        if r2.status_code == 403:
+            return {"status": "error", "message": "403 Forbidden – likely blocked by the server. Headers/cookies may be missing."}
+        if r2.status_code != 200:
+            return {"status": "error", "message": f"Step 2 failed: {r2.status_code}"}
 
-        html = response.text
-
+        html = r2.text
         if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html or "រកមិនឃើញ" in html:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
-
-        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" in html:
-            status = "found"
-        else:
+        if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" not in html:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
 
         def extract_between(text, left, right):
@@ -243,7 +241,7 @@ def scrape_land_data(land_number: str) -> dict:
                     owner_info[key] = value
 
         return {
-            "status": status,
+            "status": "found",
             "serial_info": serial_info,
             "location": location,
             "updated_system": updated_system,
@@ -252,6 +250,7 @@ def scrape_land_data(land_number: str) -> dict:
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 # === USER LOCK ===
 def get_user_lock(user_id):
