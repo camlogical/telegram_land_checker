@@ -14,6 +14,8 @@ from telegram.constants import ChatAction
 import gspread
 from google.oauth2.service_account import Credentials
 import asyncio
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
 # === CONFIG ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -165,58 +167,45 @@ def save_full_search_log(user_id, username, land_number, result):
         print(f"❌ Failed to save full search log: {e}")
 
 # === SCRAPER ===
+
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
-        return {
-            "status": "not_found",
-            "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"
-        }
+        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស."}
 
     try:
-        session = requests.Session()
+        options = Options()
+        options.headless = True
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument("--user-agent=Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari/600.2.5 ABAMobile/5.0.64")
 
-        digest_url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
+        driver = webdriver.Chrome(options=options)
+        url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEh..."
 
-        headers_get = {
-            "Host": "miniapp.mlmupc.gov.kh",
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari/600.2.5 ABAMobile/5.0.64",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-            "Sec-Fetch-Site": "none",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Dest": "document"
-        }
+        driver.get(url)
+        time.sleep(3)  # Wait for JS to load
 
-        r1 = session.get(digest_url, headers=headers_get, timeout=10)
-        if r1.status_code != 200:
-            return {"status": "error", "message": f"Step 1 failed: {r1.status_code}"}
+        # Post via JavaScript instead of raw requests
+        driver.execute_script(f'''
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/search';
+            var input1 = document.createElement('input');
+            input1.name = 'recaptchaToken';
+            input1.value = '';
+            var input2 = document.createElement('input');
+            input2.name = 'landNum';
+            input2.value = '{land_number}';
+            form.appendChild(input1);
+            form.appendChild(input2);
+            document.body.appendChild(form);
+            form.submit();
+        ''')
+        time.sleep(3)
 
-        # Step 2
-        post_url = "https://miniapp.mlmupc.gov.kh/search"
-        post_data = f"recaptchaToken=&landNum={land_number}"
-        headers_post = {
-            "Host": "miniapp.mlmupc.gov.kh",
-            "User-Agent": headers_get["User-Agent"],
-            "Accept": headers_get["Accept"],
-            "Accept-Language": headers_get["Accept-Language"],
-            "Accept-Encoding": headers_get["Accept-Encoding"],
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": "https://miniapp.mlmupc.gov.kh",
-            "Referer": digest_url,
-            "Connection": "keep-alive",
-            "Sec-Fetch-Site": "same-origin",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Dest": "document",
-        }
+        html = driver.page_source
+        driver.quit()
 
-        r2 = session.post(post_url, headers=headers_post, data=post_data, timeout=10)
-        if r2.status_code != 200:
-            return {"status": "error", "message": f"Step 2 failed: {r2.status_code}"}
-
-        html = r2.text
-        if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html or "រកមិនឃើញ" in html:
+        if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
         if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" not in html:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
@@ -231,8 +220,8 @@ def scrape_land_data(land_number: str) -> dict:
         location = extract_between(html, '<span>ភូមិ ៖ ', '</span>')
         updated_system = extract_between(html, '(ធ្វើបច្ចុប្បន្នភាព: <span>', '</span>)</p>')
 
-        owner_info = {}
         soup = BeautifulSoup(html, 'html.parser')
+        owner_info = {}
         table = soup.find("table", class_="table table-bordered")
         if table:
             rows = table.find_all("tr")
@@ -253,6 +242,7 @@ def scrape_land_data(land_number: str) -> dict:
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 
 # === USER LOCK ===
