@@ -169,7 +169,7 @@ def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {
             "status": "not_found",
-            "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"
+            "message": "Incorrect land number format. Please use ########-#### format, e.g., 18020601-0001"
         }
 
     digest_url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
@@ -177,10 +177,14 @@ def scrape_land_data(land_number: str) -> dict:
 
     headers_common = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "en-US,en;q=0.9,ca;q=0.8,en-GB;q=0.7,ar;q=0.6",
+        "Accept-Encoding": "gzip, deflate",
         "Connection": "keep-alive",
+        "Cache-Control": "max-age=0",
+        "DNT": "1",  # Do Not Track
+        "Upgrade-Insecure-Requests": "1",
+        "Content-Type": "application/x-www-form-urlencoded",
     }
 
     headers_get = {
@@ -189,17 +193,16 @@ def scrape_land_data(land_number: str) -> dict:
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Dest": "document",
         "Host": "miniapp.mlmupc.gov.kh",
+        "Referer": "https://miniapp.mlmupc.gov.kh/",  # Adding the Referer header for a more legit request
     }
 
     headers_post = {
         **headers_common,
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Origin": "https://miniapp.mlmupc.gov.kh",
-        "Referer": digest_url,
         "Sec-Fetch-Site": "same-origin",
         "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-User": "?1",
         "Sec-Fetch-Dest": "document",
-        "Host": "miniapp.mlmupc.gov.kh",
+        "Referer": digest_url,  # Referer must be from the digest_url
     }
 
     try:
@@ -207,7 +210,7 @@ def scrape_land_data(land_number: str) -> dict:
             # Step 1 - GET digest URL to set cookies
             r1 = session.get(digest_url, headers=headers_get)
             if r1.status_code != 200:
-                return {"status": "error", "message": f"Step 1 failed: {r1.status_code}"}
+                return {"status": "error", "message": f"Step 1 failed: {r1.status_code}. Check headers or cookies."}
 
             # Step 1 - Get cookies from the session
             cookies = session.cookies.get_dict()
@@ -215,19 +218,22 @@ def scrape_land_data(land_number: str) -> dict:
 
             # Step 2 - POST land number with the cookies from Step 1
             data = {"recaptchaToken": "", "landNum": land_number}
-            headers_post["Cookie"] = "; ".join([f"{key}={value}" for key, value in cookies.items()])
+
+            # Add the cookies to the POST request headers
+            cookies_header = "; ".join([f"{key}={value}" for key, value in cookies.items()])
+            headers_post["Cookie"] = cookies_header
 
             r2 = session.post(post_url, headers=headers_post, data=data)
             if r2.status_code != 200:
-                return {"status": "error", "message": f"Step 2 failed: {r2.status_code}"}
+                return {"status": "error", "message": f"Step 2 failed: {r2.status_code}. Check cookies or headers."}
 
             html = r2.text
 
         if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
-            return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
+            return {"status": "not_found", "message": "No information found for this land number."}
 
         if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" not in html:
-            return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
+            return {"status": "not_found", "message": "No information found for this land number."}
 
         def extract_between(text, left, right):
             try:
