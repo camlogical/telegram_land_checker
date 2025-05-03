@@ -165,41 +165,20 @@ def save_full_search_log(user_id, username, land_number, result):
         print(f"❌ Failed to save full search log: {e}")
 
 # === SCRAPER ===
-import undetected_chromedriver as uc
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"}
 
-    options = uc.ChromeOptions()
-    options.add_argument("--headless=new")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    driver = uc.Chrome(options=options)
+    url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"  # Use the full URL as in your code
+    headers = {"User-Agent": "Mozilla/5.0"}
+    data = f"recaptchaToken={""}&landNum={land_number}"
 
     try:
-        # Step 1: Load initial search page
-        driver.get("https://miniapp.mlmupc.gov.kh/search")
-        time.sleep(2)
+        response = requests.post(url, headers=headers, data=data, timeout=10)
+        if response.status_code != 200:
+            return {"status": "error", "message": f"HTTP error {response.status_code}"}
 
-        # Step 2: Fill and submit the form
-        input_box = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.NAME, "landNum"))
-        )
-        input_box.send_keys(land_number)
-
-        submit_btn = driver.find_element(By.XPATH, "//button[@type='submit']")
-        submit_btn.click()
-
-        # Wait for results page
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "table"))
-        )
-        html = driver.page_source
-        driver.quit()
+        html = response.text
 
         if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
             return {"status": "not_found", "message": "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ."}
@@ -238,11 +217,8 @@ def scrape_land_data(land_number: str) -> dict:
             "updated_system": updated_system,
             "owner_info": owner_info
         }
-
     except Exception as e:
-        driver.quit()
-        return {"status": "error", "message": f"Scrape failed: {str(e)}"}
-
+        return {"status": "error", "message": str(e)}
 
 # === USER LOCK ===
 def get_user_lock(user_id):
