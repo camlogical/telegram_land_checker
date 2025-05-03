@@ -165,10 +165,6 @@ def save_full_search_log(user_id, username, land_number, result):
         print(f"❌ Failed to save full search log: {e}")
 
 # === SCRAPER ===
-import requests
-import re
-from bs4 import BeautifulSoup
-
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {
@@ -179,24 +175,30 @@ def scrape_land_data(land_number: str) -> dict:
     try:
         session = requests.Session()
 
-        # Step 1: GET digest page to get session cookie
         digest_url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
+
         headers_get = {
+            "Host": "miniapp.mlmupc.gov.kh",
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari/600.2.5 ABAMobile/5.0.64",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
             "Accept-Encoding": "gzip, deflate, br",
             "Connection": "keep-alive",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Dest": "document",
+            "Cookie": "1c4a45493a8ef4336da34d345ef6759f=5454eb6816ebdc7418551ece7b6f3093"
         }
+
         r1 = session.get(digest_url, headers=headers_get, timeout=10)
         if r1.status_code != 200:
             return {"status": "error", "message": f"Step 1 failed: {r1.status_code}"}
 
-        # Get cookies from session (JSESSIONID will be auto stored in session)
-        # Step 2: POST landNum
+        # Step 2
         post_url = "https://miniapp.mlmupc.gov.kh/search"
         post_data = f"recaptchaToken=&landNum={land_number}"
         headers_post = {
+            "Host": "miniapp.mlmupc.gov.kh",
             "User-Agent": headers_get["User-Agent"],
             "Accept": headers_get["Accept"],
             "Accept-Language": headers_get["Accept-Language"],
@@ -205,10 +207,12 @@ def scrape_land_data(land_number: str) -> dict:
             "Origin": "https://miniapp.mlmupc.gov.kh",
             "Referer": digest_url,
             "Connection": "keep-alive",
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Dest": "document",
         }
+
         r2 = session.post(post_url, headers=headers_post, data=post_data, timeout=10)
-        if r2.status_code == 403:
-            return {"status": "error", "message": "403 Forbidden – likely blocked by the server. Headers/cookies may be missing."}
         if r2.status_code != 200:
             return {"status": "error", "message": f"Step 2 failed: {r2.status_code}"}
 
