@@ -176,7 +176,7 @@ def scrape_land_data(land_number: str) -> dict:
     post_url = "https://miniapp.mlmupc.gov.kh/search"
 
     headers_common = {
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Safari/600.2.5 ABAMobile/5.0.64",
+        "User-Agent": "Mozilla/5.0",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
         "Accept-Encoding": "gzip, deflate, br",
