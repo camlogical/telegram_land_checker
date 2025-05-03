@@ -165,10 +165,6 @@ def save_full_search_log(user_id, username, land_number, result):
         print(f"❌ Failed to save full search log: {e}")
 
 # === SCRAPER ===
-import requests
-import re
-from bs4 import BeautifulSoup
-
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {
