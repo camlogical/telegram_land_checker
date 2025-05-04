@@ -200,8 +200,12 @@ def scrape_land_data(land_number: str) -> dict:
 
     try:
         response = requests.post(url, headers=headers, cookies=cookies, data=data)
-        if response.status_code != 200:
-            return {"status": "error", "message": f"HTTP error {response.status_code}"}
+        
+        if response.status_code == 200:
+            # Parse and return the response content
+            return {"status": "found", "message": "Successfully fetched land data.", "html": response.text}
+        else:
+            return {"status": "error", "message": f"Error {response.status_code}: Unable to fetch data."}
 
         html = response.text
 
