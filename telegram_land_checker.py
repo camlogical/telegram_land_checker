@@ -199,7 +199,7 @@ def scrape_land_data(land_number: str) -> dict:
     }
 
     try:
-        response = requests.post(url, headers=headers, cookies=cookies, data=data, timeout=10)
+        response = requests.post(url, headers=headers, cookies=cookies, data=data)
         if response.status_code != 200:
             return {"status": "error", "message": f"HTTP error {response.status_code}"}
 
