@@ -165,11 +165,9 @@ def save_full_search_log(user_id, username, land_number, result):
         print(f"❌ Failed to save full search log: {e}")
 
 # === SCRAPER ===
-def scrape_land_data(land_number: str) -> dict:
-    if not re.match(r'^\d{8}-\d{4}$', land_number):
-        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"}
-
-    url = "https://miniapp.mlmupc.gov.kh/search"  # Use the full URL as in your code
+def get_jsession_id():
+    url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
+    
     headers = {
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "accept-language": "en-US,en;q=0.9,ca;q=0.8,en-GB;q=0.7,ar;q=0.6",
@@ -177,8 +175,7 @@ def scrape_land_data(land_number: str) -> dict:
         "content-type": "application/x-www-form-urlencoded",
         "dnt": "1",
         "origin": "https://miniapp.mlmupc.gov.kh",
-        "priority": "u=0, i",
-        "referer": "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf",
+        "referer": "https://miniapp.mlmupc.gov.kh/search",
         "sec-ch-ua": '"Microsoft Edge";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": '"Windows"',
@@ -189,8 +186,58 @@ def scrape_land_data(land_number: str) -> dict:
         "upgrade-insecure-requests": "1",
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0"
     }
+
+    try:
+        # Make the GET request to retrieve the session cookie
+        response = requests.get(url, headers=headers)
+        
+        if response.status_code == 200:
+            # Extract the JSESSIONID from the cookies
+            jsession_id = response.cookies.get('JSESSIONID')
+            if jsession_id:
+                print(f"JSESSIONID: {jsession_id}")  # Print the JSESSIONID
+                return jsession_id
+            else:
+                raise Exception("JSESSIONID not found in response cookies.")
+        else:
+            raise Exception(f"Failed to retrieve session. Status code: {response.status_code}")
+    
+    except Exception as e:
+        raise Exception(f"Error while fetching JSESSIONID: {str(e)}")
+    
+def scrape_land_data(land_number: str) -> dict:
+    if not re.match(r'^\d{8}-\d{4}$', land_number):
+        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"}
+
+        jsession_id = get_jsession_id()  # Get the dynamic JSESSIONID
+    
+    if not jsession_id:
+        return {"status": "error", "message": "Failed to retrieve JSESSIONID."}
+    
+    url = "https://miniapp.mlmupc.gov.kh/search"
+    
+    headers = {
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "accept-language": "en-US,en;q=0.9,ca;q=0.8,en-GB;q=0.7,ar;q=0.6",
+        "cache-control": "max-age=0",
+        "content-type": "application/x-www-form-urlencoded",
+        "dnt": "1",
+        "origin": "https://miniapp.mlmupc.gov.kh",
+        "priority": "u=0, i",
+        "referer": "https://miniapp.mlmupc.gov.kh/search",
+        "sec-ch-ua": '"Microsoft Edge";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "same-origin",
+        "sec-fetch-user": "?1",
+        "upgrade-insecure-requests": "1",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0"
+    }
+
     cookies = {
-        "JSESSIONID": "5A6694CC04A4A4DEA58317143272B01F",  # Your session cookie here
+        "JSESSIONID": jsession_id  # Use the dynamically retrieved JSESSIONID
     }
 
     data = {
@@ -199,13 +246,11 @@ def scrape_land_data(land_number: str) -> dict:
     }
 
     try:
+        # Make a POST request to scrape the land data
         response = requests.post(url, headers=headers, cookies=cookies, data=data)
         
-        if response.status_code == 200:
-            # Parse and return the response content
-            return {"status": "found", "message": "Successfully fetched land data.", "html": response.text}
-        else:
-            return {"status": "error", "message": f"Error {response.status_code}: Unable to fetch data."}
+        if response.status_code != 200:
+            return {"status": "error", "message": f"HTTP error {response.status_code}"}
 
         html = response.text
 
