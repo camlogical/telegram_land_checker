@@ -175,19 +175,14 @@ def scrape_land_data(land_number: str) -> dict:
     digest_url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
     post_url = "https://miniapp.mlmupc.gov.kh/search"
 
-    # Step 1 headers (from GET request)
+    # Headers for Step 1 (GET request)
     headers_get = {
-        ":authority": "miniapp.mlmupc.gov.kh",
-        ":method": "GET",
-        ":path": "/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf",
-        ":scheme": "https",
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
         "accept-encoding": "gzip, deflate, br, zstd",
         "accept-language": "en-US,en;q=0.9,ca;q=0.8,en-GB;q=0.7,ar;q=0.6",
         "cache-control": "max-age=0",
         "cookie": "JSESSIONID=5A6694CC04A4A4DEA58317143272B01F",  # Your session cookie here
         "dnt": "1",
-        "priority": "u=0, i",
         "sec-ch-ua": '"Microsoft Edge";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": '"Windows"',
@@ -199,14 +194,12 @@ def scrape_land_data(land_number: str) -> dict:
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0"
     }
 
-    # Step 2 headers (from POST request)
+    # Headers for Step 2 (POST request)
     headers_post = {
-        **headers_get,  # We start with the headers from GET and customize them for POST
-        ":method": "POST",
-        ":path": "/search",
+        **headers_get,  # Copy common headers from Step 1
         "content-length": "37",  # Adjust the content length if necessary
         "content-type": "application/x-www-form-urlencoded",
-        "origin": "https://miniapp.mlmupc.gov.kh",  # Origin header is important in POST requests
+        "origin": "https://miniapp.mlmupc.gov.kh",  # Origin header is important for POST requests
         "referer": digest_url,  # Referer must be from the digest_url
         "sec-fetch-site": "same-origin",  # Same-origin to ensure the POST works correctly
     }
@@ -276,6 +269,7 @@ def scrape_land_data(land_number: str) -> dict:
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 
 
