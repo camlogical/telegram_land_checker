@@ -176,10 +176,10 @@ def scrape_land_data(land_number: str) -> dict:
     post_url = "https://miniapp.mlmupc.gov.kh/search"
 
     headers_common = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Language": "en-US,en;q=0.9,ca;q=0.8,en-GB;q=0.7,ar;q=0.6",
-        "Accept-Encoding": "gzip, deflate",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
         "Connection": "keep-alive",
         "Cache-Control": "max-age=0",
         "DNT": "1",  # Do Not Track
@@ -203,6 +203,7 @@ def scrape_land_data(land_number: str) -> dict:
         "Sec-Fetch-User": "?1",
         "Sec-Fetch-Dest": "document",
         "Referer": digest_url,  # Referer must be from the digest_url
+        "Origin": "https://miniapp.mlmupc.gov.kh",  # Origin header is also often important
     }
 
     try:
@@ -222,6 +223,9 @@ def scrape_land_data(land_number: str) -> dict:
             # Add the cookies to the POST request headers
             cookies_header = "; ".join([f"{key}={value}" for key, value in cookies.items()])
             headers_post["Cookie"] = cookies_header
+
+            # Add delay between requests to avoid rate limiting
+            time.sleep(2)  # 2 seconds delay
 
             r2 = session.post(post_url, headers=headers_post, data=data)
             if r2.status_code != 200:
@@ -267,6 +271,8 @@ def scrape_land_data(land_number: str) -> dict:
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
 
 
 # === USER LOCK ===
