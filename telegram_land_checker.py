@@ -165,11 +165,6 @@ def save_full_search_log(user_id, username, land_number, result):
         print(f"❌ Failed to save full search log: {e}")
 
 # === SCRAPER ===
-import requests
-from bs4 import BeautifulSoup
-import time
-import re
-
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {
@@ -180,41 +175,40 @@ def scrape_land_data(land_number: str) -> dict:
     digest_url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
     post_url = "https://miniapp.mlmupc.gov.kh/search"
 
-    headers_common = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Language": "en-US,en;q=0.9,ca;q=0.8,en-GB;q=0.7,ar;q=0.6",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Cache-Control": "max-age=0",
-        "DNT": "1",  # Do Not Track
-        "Upgrade-Insecure-Requests": "1",
-        "Content-Type": "application/x-www-form-urlencoded",
-    }
-
+    # Step 1 headers (from GET request)
     headers_get = {
-        **headers_common,
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Dest": "document",
-        "Host": "miniapp.mlmupc.gov.kh",
-        "Referer": "https://miniapp.mlmupc.gov.kh/",  # Adding the Referer header for a more legit request
-        "sec-ch-ua": '"Chromium";v="91", "Google Chrome";v="91", "Not A Brand";v="99"',
+        ":authority": "miniapp.mlmupc.gov.kh",
+        ":method": "GET",
+        ":path": "/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf",
+        ":scheme": "https",
+        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "accept-encoding": "gzip, deflate, br, zstd",
+        "accept-language": "en-US,en;q=0.9,ca;q=0.8,en-GB;q=0.7,ar;q=0.6",
+        "cache-control": "max-age=0",
+        "cookie": "JSESSIONID=5A6694CC04A4A4DEA58317143272B01F",  # Your session cookie here
+        "dnt": "1",
+        "priority": "u=0, i",
+        "sec-ch-ua": '"Microsoft Edge";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": '"Windows"',
+        "sec-fetch-dest": "document",
+        "sec-fetch-mode": "navigate",
+        "sec-fetch-site": "none",
+        "sec-fetch-user": "?1",
+        "upgrade-insecure-requests": "1",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0"
     }
 
+    # Step 2 headers (from POST request)
     headers_post = {
-        **headers_common,
-        "Sec-Fetch-Site": "same-origin",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-User": "?1",
-        "Sec-Fetch-Dest": "document",
-        "Referer": digest_url,  # Referer must be from the digest_url
-        "Origin": "https://miniapp.mlmupc.gov.kh",  # Origin header is also often important
-        "sec-ch-ua": '"Chromium";v="91", "Google Chrome";v="91", "Not A Brand";v="99"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
+        **headers_get,  # We start with the headers from GET and customize them for POST
+        ":method": "POST",
+        ":path": "/search",
+        "content-length": "37",  # Adjust the content length if necessary
+        "content-type": "application/x-www-form-urlencoded",
+        "origin": "https://miniapp.mlmupc.gov.kh",  # Origin header is important in POST requests
+        "referer": digest_url,  # Referer must be from the digest_url
+        "sec-fetch-site": "same-origin",  # Same-origin to ensure the POST works correctly
     }
 
     try:
@@ -233,7 +227,7 @@ def scrape_land_data(land_number: str) -> dict:
 
             # Add the cookies to the POST request headers
             cookies_header = "; ".join([f"{key}={value}" for key, value in cookies.items()])
-            headers_post["Cookie"] = cookies_header
+            headers_post["cookie"] = cookies_header
 
             # Add delay between requests to avoid rate limiting
             time.sleep(2)  # 2 seconds delay
@@ -282,6 +276,7 @@ def scrape_land_data(land_number: str) -> dict:
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 
 # === USER LOCK ===
