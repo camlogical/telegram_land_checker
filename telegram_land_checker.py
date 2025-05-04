@@ -165,7 +165,14 @@ def save_full_search_log(user_id, username, land_number, result):
         print(f"❌ Failed to save full search log: {e}")
 
 # === SCRAPER ===
-def scrape_land_data(land_number: str) -> dict:
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import time
+
+def scrape_land_data_with_selenium(land_number: str):
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {
             "status": "not_found",
@@ -175,63 +182,39 @@ def scrape_land_data(land_number: str) -> dict:
     digest_url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"
     post_url = "https://miniapp.mlmupc.gov.kh/search"
 
-    headers_common = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Cache-Control": "max-age=0",
-        "DNT": "1",  # Do Not Track
-        "Upgrade-Insecure-Requests": "1",
-        "Content-Type": "application/x-www-form-urlencoded",
-    }
+    # Setting up the headless browser (Selenium)
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Run headless
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("start-maximized")
+    chrome_options.add_argument("disable-infobars")
+    chrome_options.add_argument("--disable-extensions")
+    
+    # Path to your chromedriver
+    service = Service(ChromeDriverManager().install())
 
-    headers_get = {
-        **headers_common,
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Dest": "document",
-        "Host": "miniapp.mlmupc.gov.kh",
-        "Referer": "https://miniapp.mlmupc.gov.kh/",  # Adding the Referer header for a more legit request
-    }
-
-    headers_post = {
-        **headers_common,
-        "Sec-Fetch-Site": "same-origin",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-User": "?1",
-        "Sec-Fetch-Dest": "document",
-        "Referer": digest_url,  # Referer must be from the digest_url
-        "Origin": "https://miniapp.mlmupc.gov.kh",  # Origin header is also often important
-    }
-
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    
     try:
-        with requests.Session() as session:
-            # Step 1 - GET digest URL to set cookies
-            r1 = session.get(digest_url, headers=headers_get)
-            if r1.status_code != 200:
-                return {"status": "error", "message": f"Step 1 failed: {r1.status_code}. Check headers or cookies."}
+        # Step 1 - Open the digest URL to simulate a real browser
+        driver.get(digest_url)
+        time.sleep(3)  # Wait for the page to load
 
-            # Step 1 - Get cookies from the session
-            cookies = session.cookies.get_dict()
-            print(f"Cookies from Step 1: {cookies}")
+        # Step 2 - Find the input field for land number and submit it
+        land_input = driver.find_element(By.NAME, "landNum")  # Assuming it's named "landNum"
+        land_input.send_keys(land_number)
+        
+        recaptcha_token = driver.find_element(By.NAME, "recaptchaToken")
+        recaptcha_token.send_keys("")  # Leave blank if not used
+        
+        submit_button = driver.find_element(By.NAME, "submit")  # Adjust according to the button name
+        submit_button.click()
 
-            # Step 2 - POST land number with the cookies from Step 1
-            data = {"recaptchaToken": "", "landNum": land_number}
+        time.sleep(3)  # Wait for results to load
 
-            # Add the cookies to the POST request headers
-            cookies_header = "; ".join([f"{key}={value}" for key, value in cookies.items()])
-            headers_post["Cookie"] = cookies_header
-
-            # Add delay between requests to avoid rate limiting
-            time.sleep(2)  # 2 seconds delay
-
-            r2 = session.post(post_url, headers=headers_post, data=data)
-            if r2.status_code != 200:
-                return {"status": "error", "message": f"Step 2 failed: {r2.status_code}. Check cookies or headers."}
-
-            html = r2.text
+        # Step 3 - Extract the result
+        html = driver.page_source
 
         if "មិនមានព័ត៌មានអំពីក្បាលដីនេះទេ" in html:
             return {"status": "not_found", "message": "No information found for this land number."}
@@ -239,12 +222,7 @@ def scrape_land_data(land_number: str) -> dict:
         if "វិញ្ញាបនបត្រសម្គាល់ម្ចាស់អចលនវត្ថុលេខ" not in html:
             return {"status": "not_found", "message": "No information found for this land number."}
 
-        def extract_between(text, left, right):
-            try:
-                return text.split(left)[1].split(right)[0].strip()
-            except:
-                return ""
-
+        # Extracting data from the HTML
         serial_info = extract_between(html, 'id="serail_info">', '</span></td>')
         location = extract_between(html, '<span>ភូមិ ៖ ', '</span>')
         updated_system = extract_between(html, '(ធ្វើបច្ចុប្បន្នភាព: <span>', '</span>)</p>')
@@ -271,6 +249,16 @@ def scrape_land_data(land_number: str) -> dict:
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+    finally:
+        driver.quit()
+
+def extract_between(text, left, right):
+    try:
+        return text.split(left)[1].split(right)[0].strip()
+    except:
+        return ""
+
 
 
 
