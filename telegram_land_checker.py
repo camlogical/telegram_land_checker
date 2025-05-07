@@ -77,6 +77,7 @@ def load_user_database():
         except Exception as e:
             print(f"❌ Failed to load user database: {e}")
 
+# === SAVE ALL USER TO GSHEET === 
 def save_all_users_to_gsheet():
     try:
         if not user_database:
@@ -426,4 +427,8 @@ if __name__ == "__main__":
     app_bot.add_handler(CommandHandler("broadcast", broadcast))
     app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
-    app_bot.run_polling()
+    app_bot.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.getenv("PORT", 8080)),
+        webhook_url=os.getenv("WEBHOOK_URL")
+    )
