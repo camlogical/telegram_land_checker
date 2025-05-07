@@ -426,7 +426,9 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == "__main__":
     load_user_database()
 
-    threading.Thread(target=run_flask).start()
+    # Only run Flask server locally (not in Railway production)
+    if os.getenv("RAILWAY_ENVIRONMENT") != "production":
+        threading.Thread(target=run_flask).start()
     threading.Thread(target=auto_ping).start()
 
     # === DEBUG TOKEN LOADING ===
