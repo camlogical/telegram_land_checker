@@ -453,9 +453,12 @@ if __name__ == "__main__":
     app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
     
-    # Use webhook for Railway deployment
-    app_bot.run_webhook(
-        listen="0.0.0.0",
-        port=int(os.getenv("PORT", 8080)),
-        webhook_url=os.getenv("WEBHOOK_URL")
-    )
+    # Use webhook on Railway, polling locally
+    if os.getenv("RAILWAY_ENVIRONMENT") == "production":
+        app_bot.run_webhook(
+            listen="0.0.0.0",
+            port=int(os.getenv("PORT", 8080)),
+            webhook_url=os.getenv("WEBHOOK_URL")
+        )
+    else:
+        app_bot.run_polling(drop_pending_updates=True)
