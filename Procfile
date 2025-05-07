@@ -1,1 +1,1 @@
-worker: python telegram_land_checker.py
+web: python telegram_land_checker.py
