@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 import threading
 import time
@@ -77,7 +80,6 @@ def load_user_database():
         except Exception as e:
             print(f"❌ Failed to load user database: {e}")
 
-# === SAVE ALL USER TO GSHEET === 
 def save_all_users_to_gsheet():
     try:
         if not user_database:
@@ -168,10 +170,16 @@ def save_full_search_log(user_id, username, land_number, result):
 # === SCRAPER ===
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
-        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \n ឧទា.18020601-0001"}
+        return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001"}
 
     url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"  # Use the full URL as in your code
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9,km-KH;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Referer": "https://miniapp.mlmupc.gov.kh/",
+        "Connection": "keep-alive"
+    }
     data = {"recaptchaToken": "", "landNum": land_number}
 
     try:
@@ -421,12 +429,31 @@ if __name__ == "__main__":
     threading.Thread(target=run_flask).start()
     threading.Thread(target=auto_ping).start()
 
-    app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
+    # === DEBUG TOKEN LOADING ===
+    print(f"=== DEBUG ===")
+    print(f"Current directory: {os.getcwd()}")
+    print(f"Files in directory: {os.listdir()}")
+    print(f"BOT_TOKEN value: {os.getenv('BOT_TOKEN')}")
+
+    # === BOT INITIALIZATION ===
+    token = os.getenv("BOT_TOKEN")
+    if not token:
+        raise ValueError("❌ BOT_TOKEN not found in environment variables!")
+
+    app_bot = ApplicationBuilder()\
+        .token(token)\
+        .connection_pool_size(1)\
+        .get_updates_connection_pool_size(1)\
+        .concurrent_updates(False)\
+        .build()
+        
     app_bot.add_handler(CommandHandler("start", start))
     app_bot.add_handler(CommandHandler("history", history))
     app_bot.add_handler(CommandHandler("broadcast", broadcast))
     app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
+    
+    # Use webhook for Railway deployment
     app_bot.run_webhook(
         listen="0.0.0.0",
         port=int(os.getenv("PORT", 8080)),
