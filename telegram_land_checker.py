@@ -1,3 +1,4 @@
+import logging
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -18,13 +19,35 @@ import gspread
 from google.oauth2.service_account import Credentials
 import asyncio
 
+# === LOGGING SETUP ===
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+)
+logger = logging.getLogger(__name__)
+
+# === ENV VALIDATION ===
+REQUIRED_ENV_VARS = [
+    "BOT_TOKEN",
+    "ADMIN_ID",
+    "SHEET_ID",
+    "SHEET_TAB",
+    "USER_CONTACT_TAB",
+    "GOOGLE_CREDENTIALS_JSON",
+    "MLMUPC_SEARCH_URL"
+]
+missing_vars = [var for var in REQUIRED_ENV_VARS if not os.getenv(var)]
+if missing_vars:
+    logger.critical(f"Missing required environment variables: {', '.join(missing_vars)}. Exiting.")
+    exit(1)
+
 # === CONFIG ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = 388876020
-SHEET_ID = "1N_LM9CM4egDeEVVbWx7GK8h5usQbg_EEDJZBNt8M1oY"
-SHEET_TAB = "User_Search_History"
-USER_CONTACT_TAB = "User_Contacts"
-USER_DB_FILE = "users.json"
+ADMIN_ID = int(os.getenv("ADMIN_ID", "388876020"))
+SHEET_ID = os.getenv("SHEET_ID", "1N_LM9CM4egDeEVVbWx7GK8h5usQbg_EEDJZBNt8M1oY")
+SHEET_TAB = os.getenv("SHEET_TAB", "User_Search_History")
+USER_CONTACT_TAB = os.getenv("USER_CONTACT_TAB", "User_Contacts")
+USER_DB_FILE = os.getenv("USER_DB_FILE", "users.json")
 
 # === GLOBALS ===
 user_database = {}
@@ -43,14 +66,14 @@ def run_flask():
 def auto_ping():
     url = os.getenv("PING_URL")
     if not url:
-        print("⚠ No PING_URL set. Skipping auto-ping.")
+        logger.warning("No PING_URL set. Skipping auto-ping.")
         return
     while True:
         try:
-            print(f"Pinging {url}")
+            logger.info(f"Pinging {url}")
             requests.get(url)
         except Exception as e:
-            print(f"Ping failed: {e}")
+            logger.error(f"Ping failed: {e}")
         time.sleep(600)
 
 # === GOOGLE SHEETS CLIENT ===
@@ -172,7 +195,7 @@ def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001"}
 
-    url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"  # Use the full URL as in your code
+    url = os.getenv("MLMUPC_SEARCH_URL")
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
         "Accept-Language": "en-US,en;q=0.9,km-KH;q=0.8",

@@ -7,3 +7,4 @@ flask
 gspread
 google-auth
 python-dotenv
+gunicorn

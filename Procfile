@@ -1,1 +1,1 @@
-web: python telegram_land_checker.py
+web: gunicorn telegram_land_checker:app

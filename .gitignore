@@ -1,3 +1,11 @@
 venv/
 .env
+.env.*
+users.json
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.DS_Store
 users.json
