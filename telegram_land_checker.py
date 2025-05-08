@@ -9,7 +9,8 @@ import requests
 import re
 import json
 from datetime import datetime
-from flask import Flask
+from fastapi import FastAPI
+from fastapi.responses import PlainTextResponse
 from bs4 import BeautifulSoup
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
@@ -53,15 +54,16 @@ USER_DB_FILE = os.getenv("USER_DB_FILE", "users.json")
 user_database = {}
 user_locks = {}
 
-# === FLASK SETUP ===
-app = Flask(__name__)
+# === FASTAPI SETUP ===
+app = FastAPI()
 
-@app.route('/')
+@app.get("/", response_class=PlainTextResponse)
 def home():
     return "✅ Bot is running!"
 
-def run_flask():
-    app.run(host='0.0.0.0', port=int(os.getenv("PORT", 8080)))
+def run_fastapi():
+    import uvicorn
+    uvicorn.run("telegram_land_checker:app", host="0.0.0.0", port=int(os.getenv("PORT", 8080)), reload=False)
 
 def auto_ping():
     url = os.getenv("PING_URL")

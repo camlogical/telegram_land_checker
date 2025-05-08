@@ -6,7 +6,7 @@ A Telegram bot for checking land information using the MLMUPC Cambodia service, 
 - Telegram bot for user queries
 - Google Sheets integration for logging
 - User database management
-- Flask server for webhooks/keep-alive
+- FastAPI server for webhooks/keep-alive
 
 ## Setup
 
@@ -26,19 +26,20 @@ A Telegram bot for checking land information using the MLMUPC Cambodia service, 
 
 4. **Run the bot locally:**
    ```sh
-   python telegram_land_checker.py
+   python telegram_land_checker.py  # For development, if you want to run the script directly
+   # OR
+   uvicorn telegram_land_checker:app --reload  # Recommended for FastAPI development
    ```
-   Or in production:
-   ```sh
-   gunicorn telegram_land_checker:app
-   ```
+
+## Production/Deployment
+- Use the provided `Procfile` for deployment to platforms like Heroku or Railway:
+  ```
+  web: uvicorn telegram_land_checker:app --host=0.0.0.0 --port=8080
+  ```
+- Ensure all secrets are set in your deployment environment.
 
 ## Environment Variables
 See `.env.example` for all required variables.
-
-## Deployment
-- Use the provided `Procfile` for deployment to platforms like Heroku or Railway.
-- Ensure all secrets are set in your deployment environment.
 
 ## Security
 - Never commit your `.env` file or secrets to git.
