@@ -33,7 +33,7 @@ user_locks = {}
 # === FLASK SETUP ===
 app = Flask(__name__)
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def home():
     return "✅ Bot is running!"
 
