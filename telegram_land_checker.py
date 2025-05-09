@@ -426,9 +426,9 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == "__main__":
     load_user_database()
 
-    # Only run Flask server locally (not in Railway production)
-    if os.getenv("RAILWAY_ENVIRONMENT") != "production":
-        threading.Thread(target=run_flask).start()
+    # Only run Flask server locally (not in production on Render/Railway)
+    if os.getenv("RAILWAY_ENVIRONMENT") != "production" and os.getenv("RENDER") != "true":
+        threading.Thread(target=run_flask).start()  # Local development only
     threading.Thread(target=auto_ping).start()
 
     # === DEBUG TOKEN LOADING ===
@@ -455,8 +455,8 @@ if __name__ == "__main__":
     app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
     
-    # Use webhook on Railway, polling locally
-    if os.getenv("RAILWAY_ENVIRONMENT") == "production":
+    # Use webhook in production (Railway/Render), polling locally
+    if os.getenv("RAILWAY_ENVIRONMENT") == "production" or os.getenv("RENDER") == "true":
         app_bot.run_webhook(
             listen="0.0.0.0",
             port=int(os.getenv("PORT", 8080)),
