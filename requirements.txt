@@ -9,3 +9,4 @@ gspread
 google-auth
 python-dotenv
 flask
+gunicorn
