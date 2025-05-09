@@ -54,16 +54,15 @@ USER_DB_FILE = os.getenv("USER_DB_FILE", "users.json")
 user_database = {}
 user_locks = {}
 
-# === FASTAPI SETUP ===
-app = FastAPI()
+app = Flask(__name__)
 
-@app.get("/", response_class=PlainTextResponse)
+@app.route('/')
 def home():
-    return "✅ Bot is running!"
+    return 'Bot is running!'
 
-def run_fastapi():
-    import uvicorn
-    uvicorn.run("telegram_land_checker:app", host="0.0.0.0", port=int(os.getenv("PORT", 8080)), reload=False)
+def run_flask():
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
 
 def auto_ping():
     url = os.getenv("PING_URL")
