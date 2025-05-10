@@ -38,22 +38,6 @@ def home():
     return "✅ Bot is running!"
 
 
-def run_flask():
-    app.run(host='0.0.0.0', port=int(os.getenv("PORT", 8080)))
-
-def auto_ping():
-    url = os.getenv("PING_URL")
-    if not url:
-        print("⚠ No PING_URL set. Skipping auto-ping.")
-        return
-    while True:
-        try:
-            print(f"Pinging {url}")
-            requests.get(url)
-        except Exception as e:
-            print(f"Ping failed: {e}")
-        time.sleep(600)
-
 # === GOOGLE SHEETS CLIENT ===
 def get_gsheet_client():
     credentials_info = json.loads(os.getenv('GOOGLE_CREDENTIALS_JSON'))
@@ -423,32 +407,36 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-# === MAIN RUN ===
-if __name__ == "__main__":
+# Telegram application setup
+application = ApplicationBuilder().token(BOT_TOKEN).build()
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("history", history))
+application.add_handler(CommandHandler("broadcast", broadcast))
+application.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
+
+# Flask route for Telegram webhook
+WEBHOOK_PATH = f"/{BOT_TOKEN}"
+WEBHOOK_URL = f"{WEBHOOK_BASE_URL}/{BOT_TOKEN}"
+
+@app.route(WEBHOOK_PATH, methods=["POST"])
+def webhook_handler():
+    update = telegram.Update.de_json(request.get_json(force=True), application.bot)
+    asyncio.create_task(application.process_update(update))
+    return "ok"
+
+def run_flask():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
+
+async def set_webhook():
+    await application.bot.set_webhook(url=WEBHOOK_URL)
+    print(f"Webhook set to: {WEBHOOK_URL}")
+
+def main():
     load_user_database()
-
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("history", history))
-    application.add_handler(CommandHandler("broadcast", broadcast))
-    application.add_handler(MessageHandler(filters.CONTACT, handle_contact))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
-
-    # Setup Flask webhook route
-    WEBHOOK_PATH = f"/{BOT_TOKEN}"
-    WEBHOOK_URL = f"{os.environ.get('WEBHOOK_BASE_URL')}/{BOT_TOKEN}"
-
-    async def set_webhook():
-        await application.bot.set_webhook(url=WEBHOOK_URL)
-
-    @app.route(WEBHOOK_PATH, methods=["POST"])
-    def webhook_handler():
-        update = telegram.Update.de_json(request.get_json(force=True), application.bot)
-        asyncio.create_task(application.process_update(update))
-        return "ok"
-
     threading.Thread(target=run_flask, daemon=True).start()
     asyncio.run(set_webhook())
-    print("✅ Webhook set and bot running.")
 
+if __name__ == "__main__":
+    main()
