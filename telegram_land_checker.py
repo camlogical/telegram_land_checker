@@ -425,43 +425,24 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === MAIN RUN ===
 if __name__ == "__main__":
+    import asyncio
+
     load_user_database()
 
-    # Only run Flask server locally (not in production on Render/Railway)
-    if os.getenv("RAILWAY_ENVIRONMENT") != "production" and os.getenv("RENDER") != "true":
-        threading.Thread(target=run_flask).start()  # Local development only
-    threading.Thread(target=auto_ping).start()
+    # Start Flask and auto-ping in background threads
+    threading.Thread(target=run_flask, daemon=True).start()
+    threading.Thread(target=auto_ping, daemon=True).start()
 
-    # === DEBUG TOKEN LOADING ===
-    print(f"=== DEBUG ===")
-    print(f"Current directory: {os.getcwd()}")
-    print(f"Files in directory: {os.listdir()}")
-    print(f"BOT_TOKEN value: {os.getenv('BOT_TOKEN')}")
+    async def main():
+        application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # === BOT INITIALIZATION ===
-    token = os.getenv("BOT_TOKEN")
-    if not token:
-        raise ValueError("❌ BOT_TOKEN not found in environment variables!")
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("history", history))
+        application.add_handler(CommandHandler("broadcast", broadcast))
+        application.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
 
-    app_bot = ApplicationBuilder()\
-        .token(token)\
-        .connection_pool_size(1)\
-        .get_updates_connection_pool_size(1)\
-        .concurrent_updates(False)\
-        .build()
-        
-    app_bot.add_handler(CommandHandler("start", start))
-    app_bot.add_handler(CommandHandler("history", history))
-    app_bot.add_handler(CommandHandler("broadcast", broadcast))
-    app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
-    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
-    
-    # Use webhook in production (Railway/Render), polling locally
-    if os.getenv("RAILWAY_ENVIRONMENT") == "production" or os.getenv("RENDER") == "true":
-        app_bot.run_webhook(
-            listen="0.0.0.0",
-            port=int(os.getenv("PORT", 8080)),
-            webhook_url=os.getenv("WEBHOOK_URL")
-        )
-    else:
-        app_bot.run_polling(drop_pending_updates=True)
+        print("🤖 Bot is starting...")
+        await application.run_polling()
+
+    asyncio.run(main())
