@@ -38,6 +38,22 @@ def home():
     return "✅ Bot is running!"
 
 
+def run_flask():
+    app.run(host='0.0.0.0', port=int(os.getenv("PORT", 8080)))
+
+def auto_ping():
+    url = os.getenv("PING_URL")
+    if not url:
+        print("⚠ No PING_URL set. Skipping auto-ping.")
+        return
+    while True:
+        try:
+            print(f"Pinging {url}")
+            requests.get(url)
+        except Exception as e:
+            print(f"Ping failed: {e}")
+        time.sleep(600)
+
 # === GOOGLE SHEETS CLIENT ===
 def get_gsheet_client():
     credentials_info = json.loads(os.getenv('GOOGLE_CREDENTIALS_JSON'))
@@ -407,36 +423,45 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
-# Telegram application setup
-application = ApplicationBuilder().token(BOT_TOKEN).build()
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CommandHandler("history", history))
-application.add_handler(CommandHandler("broadcast", broadcast))
-application.add_handler(MessageHandler(filters.CONTACT, handle_contact))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
-
-# Flask route for Telegram webhook
-WEBHOOK_PATH = f"/{BOT_TOKEN}"
-WEBHOOK_URL = f"{WEBHOOK_BASE_URL}/{BOT_TOKEN}"
-
-@app.route(WEBHOOK_PATH, methods=["POST"])
-def webhook_handler():
-    update = telegram.Update.de_json(request.get_json(force=True), application.bot)
-    asyncio.create_task(application.process_update(update))
-    return "ok"
-
-def run_flask():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
-
-async def set_webhook():
-    await application.bot.set_webhook(url=WEBHOOK_URL)
-    print(f"Webhook set to: {WEBHOOK_URL}")
-
-def main():
-    load_user_database()
-    threading.Thread(target=run_flask, daemon=True).start()
-    asyncio.run(set_webhook())
-
+# === MAIN RUN ===
 if __name__ == "__main__":
-    main()
+    load_user_database()
+
+    # Only run Flask server locally (not in production on Render/Railway)
+    if os.getenv("RAILWAY_ENVIRONMENT") != "production" and os.getenv("RENDER") != "true":
+        threading.Thread(target=run_flask).start()  # Local development only
+    threading.Thread(target=auto_ping).start()
+
+    # === DEBUG TOKEN LOADING ===
+    print(f"=== DEBUG ===")
+    print(f"Current directory: {os.getcwd()}")
+    print(f"Files in directory: {os.listdir()}")
+    print(f"BOT_TOKEN value: {os.getenv('BOT_TOKEN')}")
+
+    # === BOT INITIALIZATION ===
+    token = os.getenv("BOT_TOKEN")
+    if not token:
+        raise ValueError("❌ BOT_TOKEN not found in environment variables!")
+
+    app_bot = ApplicationBuilder()\
+        .token(token)\
+        .connection_pool_size(1)\
+        .get_updates_connection_pool_size(1)\
+        .concurrent_updates(False)\
+        .build()
+        
+    app_bot.add_handler(CommandHandler("start", start))
+    app_bot.add_handler(CommandHandler("history", history))
+    app_bot.add_handler(CommandHandler("broadcast", broadcast))
+    app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
+    
+    # Use webhook in production (Railway/Render), polling locally
+    if os.getenv("RAILWAY_ENVIRONMENT") == "production" or os.getenv("RENDER") == "true":
+        app_bot.run_webhook(
+            listen="0.0.0.0",
+            port=int(os.getenv("PORT", 8080)),
+            webhook_url=os.getenv("WEBHOOK_URL")
+        )
+    else:
+        app_bot.run_polling(drop_pending_updates=True)
