@@ -425,24 +425,30 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === MAIN RUN ===
 if __name__ == "__main__":
-    import asyncio
-
     load_user_database()
 
-    # Start Flask and auto-ping in background threads
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("history", history))
+    application.add_handler(CommandHandler("broadcast", broadcast))
+    application.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
+
+    # Setup Flask webhook route
+    WEBHOOK_PATH = f"/{BOT_TOKEN}"
+    WEBHOOK_URL = f"{os.environ.get('WEBHOOK_BASE_URL')}/{BOT_TOKEN}"
+
+    async def set_webhook():
+        await application.bot.set_webhook(url=WEBHOOK_URL)
+
+    @app.route(WEBHOOK_PATH, methods=["POST"])
+    def webhook_handler():
+        update = telegram.Update.de_json(request.get_json(force=True), application.bot)
+        asyncio.create_task(application.process_update(update))
+        return "ok"
+
     threading.Thread(target=run_flask, daemon=True).start()
-    threading.Thread(target=auto_ping, daemon=True).start()
+    asyncio.run(set_webhook())
+    print("✅ Webhook set and bot running.")
 
-    async def main():
-        application = ApplicationBuilder().token(BOT_TOKEN).build()
-
-        application.add_handler(CommandHandler("start", start))
-        application.add_handler(CommandHandler("history", history))
-        application.add_handler(CommandHandler("broadcast", broadcast))
-        application.add_handler(MessageHandler(filters.CONTACT, handle_contact))
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
-
-        print("🤖 Bot is starting...")
-        await application.run_polling()
-
-    asyncio.run(main())
