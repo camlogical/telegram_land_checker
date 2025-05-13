@@ -446,30 +446,22 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # === MAIN RUN ===
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+    import asyncio
+
+    load_dotenv()
     load_user_database()
 
-    # Only run Flask server locally (not in Railway production)
-    if os.getenv("RAILWAY_ENVIRONMENT") != "production":
-        threading.Thread(target=run_flask).start()
-    threading.Thread(target=auto_ping).start()
+    threading.Thread(target=auto_ping, daemon=True).start()
 
-    # === DEBUG TOKEN LOADING ===
-    print(f"=== DEBUG ===")
-    print(f"Current directory: {os.getcwd()}")
-    print(f"Files in directory: {os.listdir()}")
-    print(f"BOT_TOKEN value: {os.getenv('BOT_TOKEN')}")
+    BOT_TOKEN = os.getenv("BOT_TOKEN")
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+    PORT = int(os.getenv("PORT", 8080))
 
-    # === BOT INITIALIZATION ===
-    token = os.getenv("BOT_TOKEN")
-    if not token:
-        raise ValueError("❌ BOT_TOKEN not found in environment variables!")
+    if not BOT_TOKEN or not WEBHOOK_URL:
+        raise Exception("❌ Missing BOT_TOKEN or WEBHOOK_URL in env vars!")
 
-    app_bot = ApplicationBuilder()\
-        .token(token)\
-        .connection_pool_size(1)\
-        .get_updates_connection_pool_size(1)\
-        .concurrent_updates(False)\
-        .build()
+    bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
         
     app_bot.add_handler(CommandHandler("start", start))
     app_bot.add_handler(CommandHandler("history", history))
@@ -477,12 +469,14 @@ if __name__ == "__main__":
     app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
     
-    # Use webhook on Railway, polling locally
-    if os.getenv("RAILWAY_ENVIRONMENT") == "production":
-        app_bot.run_webhook(
-            listen="0.0.0.0",
-            port=int(os.getenv("PORT", 8080)),
-            webhook_url=os.getenv("WEBHOOK_URL")
-        )
-    else:
-        app_bot.run_polling(drop_pending_updates=True)
+    async def set_webhook():
+        await bot_app.bot.set_webhook(url=f"{WEBHOOK_URL}/{BOT_TOKEN}")
+        print("✅ Webhook set to:", f"{WEBHOOK_URL}/{BOT_TOKEN}")
+
+    asyncio.run(set_webhook())
+
+    bot_app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}"
+    )
