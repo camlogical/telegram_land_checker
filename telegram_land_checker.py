@@ -445,13 +445,10 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # === MAIN RUN ===
+import asyncio
+
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-    import asyncio
-
-    load_dotenv()
     load_user_database()
-
     threading.Thread(target=auto_ping, daemon=True).start()
 
     BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -459,16 +456,14 @@ if __name__ == "__main__":
     PORT = int(os.getenv("PORT", 8080))
 
     if not BOT_TOKEN or not WEBHOOK_URL:
-        raise Exception("❌ Missing BOT_TOKEN or WEBHOOK_URL in env vars!")
+        raise Exception("Missing BOT_TOKEN or WEBHOOK_URL")
 
     bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
-        
+
     bot_app.add_handler(CommandHandler("start", start))
-    bot_app.add_handler(CommandHandler("history", history))
-    bot_app.add_handler(CommandHandler("broadcast", broadcast))
     bot_app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
-    
+
     async def set_webhook():
         await bot_app.bot.set_webhook(url=f"{WEBHOOK_URL}/{BOT_TOKEN}")
         print("✅ Webhook set to:", f"{WEBHOOK_URL}/{BOT_TOKEN}")
@@ -480,3 +475,4 @@ if __name__ == "__main__":
         port=PORT,
         webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}"
     )
+
