@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
-
+import random
 import os
 import threading
 import time
@@ -20,7 +20,7 @@ import asyncio
 
 # === CONFIG ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = 388876020
+ADMIN_ID = os.getenv("ADMIN_ID")
 SHEET_ID = "1N_LM9CM4egDeEVVbWx7GK8h5usQbg_EEDJZBNt8M1oY"
 SHEET_TAB = "User_Search_History"
 USER_CONTACT_TAB = "User_Contacts"
@@ -33,10 +33,9 @@ user_locks = {}
 # === FLASK SETUP ===
 app = Flask(__name__)
 
-@app.route('/', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'])
+@app.route('/')
 def home():
     return "✅ Bot is running!"
-
 
 def run_flask():
     app.run(host='0.0.0.0', port=int(os.getenv("PORT", 8080)))
@@ -168,14 +167,34 @@ def save_full_search_log(user_id, username, land_number, result):
     except Exception as e:
         print(f"❌ Failed to save full search log: {e}")
 
+# === RANDOM USER AGENTS ===
+def load_user_agents(filepath="user_agents.txt"):
+    with open(filepath, "r", encoding="utf-8") as f:
+        return [line.strip() for line in f if line.strip()]
+
+USER_AGENTS_URL = os.getenv("USER_AGENTS_URL")
+
+def fetch_user_agents(url: str) -> list:
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return [line.strip() for line in response.text.splitlines() if line.strip()]
+    except Exception as e:
+        print(f"Error fetching user agents: {e}")
+        return []
+
+USER_AGENTS = fetch_user_agents(USER_AGENTS_URL)
+
+def get_random_user_agent():
+    return random.choice(USER_AGENTS) if USER_AGENTS else "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+
 # === SCRAPER ===
 def scrape_land_data(land_number: str) -> dict:
     if not re.match(r'^\d{8}-\d{4}$', land_number):
         return {"status": "not_found", "message": "អ្នកវាយទម្រង់លេខក្បាលដីខុស.\n សូមវាយជាទម្រង់ ########-#### \nឧទា.18020601-0001"}
-
-    url = "https://miniapp.mlmupc.gov.kh/search?digest=Dvy%2B5MEhP2%2F36gfYb2iuIaO6kNNCiOdCVmmoNNVdVBQTDhNqVIkwTwssn33SvcXk80Rj6fL7yKJC%2FRYXdiEJDaDAIlaTGtHn98Ttb7y6pNXzdtuF806hzu2HBefFjIuz0Y%2F%2BmHCaFYP%2Fn41B9EAEQvuLVovWSVRG75PDNCTZMtwdu%2F5%2BF5xV%2B7InLXEhfFbVFdL65u3NN%2FueAxB5fBNsV9%2BGWVn7CsCsR%2B%2Frfng5f0MfLx965CvXSJS2BZU22%2FeUyikeeFjakJ0KRit97MSmw2K2aR1UVkiW%2BzcIi%2Br8uCLKKUmuAfAcpsJZn95dAEIf"  # Use the full URL as in your code
+    url = os.getenv("URL")
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        "User-Agent": get_random_user_agent(),
         "Accept-Language": "en-US,en;q=0.9,km-KH;q=0.8",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Referer": "https://miniapp.mlmupc.gov.kh/",
@@ -358,6 +377,7 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
     finally:
         lock.release()
 
+# === HISTORY COMMANDS ===
 async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
         await update.message.reply_text("❌ You are not authorized to view user search history.")
@@ -381,6 +401,7 @@ async def history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Error reading history: {e}")
 
+# === BROADCAST COMMANDS ===
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.from_user.id != ADMIN_ID:
         await update.message.reply_text("❌ You are not authorized to use this command.")
@@ -408,7 +429,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 try:
                     await context.bot.send_message(chat_id=int(user_id), text=message)
                     success += 1
-                    await asyncio.sleep(0.05)
+                    await asyncio.sleep(0.1)
                 except Exception as e:
                     print(f"❌ Failed to send to {user_id}: {e}")
                     failed += 1
@@ -427,9 +448,9 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == "__main__":
     load_user_database()
 
-    # Only run Flask server locally (not in production on Render/Railway)
-    if os.getenv("RAILWAY_ENVIRONMENT") != "production" and os.getenv("RENDER") != "true":
-        threading.Thread(target=run_flask).start()  # Local development only
+    # Only run Flask server locally (not in Railway production)
+    if os.getenv("RAILWAY_ENVIRONMENT") != "production":
+        threading.Thread(target=run_flask).start()
     threading.Thread(target=auto_ping).start()
 
     # === DEBUG TOKEN LOADING ===
@@ -456,8 +477,8 @@ if __name__ == "__main__":
     app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
     
-    # Use webhook in production (Railway/Render), polling locally
-    if os.getenv("RAILWAY_ENVIRONMENT") == "production" or os.getenv("RENDER") == "true":
+    # Use webhook on Railway, polling locally
+    if os.getenv("RAILWAY_ENVIRONMENT") == "production":
         app_bot.run_webhook(
             listen="0.0.0.0",
             port=int(os.getenv("PORT", 8080)),
