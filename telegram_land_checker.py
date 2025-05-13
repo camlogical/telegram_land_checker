@@ -449,9 +449,7 @@ if __name__ == "__main__":
     load_user_database()
 
     # Only run Flask server locally (not in Railway production)
-    if os.getenv("RAILWAY_ENVIRONMENT") != "production":
-        threading.Thread(target=run_flask).start()
-    threading.Thread(target=auto_ping).start()
+    threading.Thread(target=run_flask).start()
 
     # === DEBUG TOKEN LOADING ===
     print(f"=== DEBUG ===")
