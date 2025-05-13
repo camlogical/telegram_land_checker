@@ -237,11 +237,8 @@ if __name__ == "__main__":
 
     # Webhook for production (Render)
     webhook_url = os.getenv("WEBHOOK_URL")
-    if webhook_url:
-        bot_app.run_webhook(
-            listen="0.0.0.0",
-            port=int(os.getenv("PORT", 8080)),
-            webhook_url=f"{webhook_url}/{BOT_TOKEN}"
-        )
-    else:
-        bot_app.run_polling(drop_pending_updates=True)
+    bot_app.run_webhook(
+        listen="0.0.0.0",
+        port=int(os.getenv("PORT", 8080)),
+        webhook_url=f"{webhook_url}/{BOT_TOKEN}"
+    )
