@@ -1,4 +1,4 @@
-python-telegram-bot[webhooks]
+python-telegram-bot[webhooks]==20.7
 requests
 beautifulsoup4
 pandas
@@ -10,4 +10,3 @@ google-auth
 python-dotenv
 flask
 gunicorn
-python-telegram-bot==20.7
