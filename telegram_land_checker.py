@@ -219,24 +219,21 @@ async def handle_multiple_land_numbers(update: Update, context: ContextTypes.DEF
 # === BOT INITIALIZATION ===
 if __name__ == "__main__":
     load_user_database()
-
-    # Fetch user agents
-    try:
-        USER_AGENTS = requests.get(os.getenv("USER_AGENTS_URL")).text.strip().splitlines()
-    except:
-        USER_AGENTS = []
-
-    # Start auto-ping if needed
     threading.Thread(target=auto_ping, daemon=True).start()
 
-    # Build bot app
     bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
+
     bot_app.add_handler(CommandHandler("start", start))
     bot_app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
 
-    # Webhook for production (Render)
     webhook_url = os.getenv("WEBHOOK_URL")
+
+    async def set_webhook():
+        await bot_app.bot.set_webhook(f"{webhook_url}/{BOT_TOKEN}")
+
+    asyncio.run(set_webhook())
+
     bot_app.run_webhook(
         listen="0.0.0.0",
         port=int(os.getenv("PORT", 8080)),
