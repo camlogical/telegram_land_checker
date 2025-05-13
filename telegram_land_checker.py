@@ -463,11 +463,11 @@ if __name__ == "__main__":
 
     bot_app = ApplicationBuilder().token(BOT_TOKEN).build()
         
-    app_bot.add_handler(CommandHandler("start", start))
-    app_bot.add_handler(CommandHandler("history", history))
-    app_bot.add_handler(CommandHandler("broadcast", broadcast))
-    app_bot.add_handler(MessageHandler(filters.CONTACT, handle_contact))
-    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
+    bot_app.add_handler(CommandHandler("start", start))
+    bot_app.add_handler(CommandHandler("history", history))
+    bot_app.add_handler(CommandHandler("broadcast", broadcast))
+    bot_app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+    bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_multiple_land_numbers))
     
     async def set_webhook():
         await bot_app.bot.set_webhook(url=f"{WEBHOOK_URL}/{BOT_TOKEN}")
